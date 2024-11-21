@@ -1,23 +1,42 @@
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, validator
 import json
 from typing import List
+from enum import Enum
 
-# Creamos la aplicación FastAPI
 app = FastAPI()
 
-# Definimos el esquema de lectura y respuesta del "Item" usando Pydantic
-class Item(BaseModel):
-    id: int
-    name: str
-    description: str | None = None
 
-# Definimos el esquema de creación de un nuevo "Item" sin el campo "id"
-class ItemCreate(BaseModel):
-    name: str
-    description: str | None = None
+class User(BaseModel):
+    id_usuario: str
+    nombre: str
+    apellido: str
+    genero: str
+    correo: str
+    is_active: bool = True
 
-# Función auxiliar para leer los datos del archivo JSON
+
+class UserCreate(BaseModel):
+    id_usuario: str
+    nombre: str
+    apellido: str
+    genero: str
+    correo: str
+    is_active: bool = True
+
+    @validator('correo')
+    def validar_correo(cls, v):
+        if '@' not in v:
+            raise ValueError('Debe ser un correo válido')
+        return v
+
+    @validator('genero')
+    def validar_genero(cls, v):
+        if v.lower() not in ['m', 'f', 'otro']:
+            raise ValueError('Género debe ser M, F u Otro')
+        return v.lower()
+
+
 def read_data():
     try:
         with open("app/data.json", "r") as file:
@@ -25,78 +44,107 @@ def read_data():
     except FileNotFoundError:
         return []
 
-# Función auxiliar para escribir datos en el archivo JSON
+
 def write_data(data):
     with open("app/data.json", "w") as file:
         json.dump(data, file, indent=4)
 
-# Endpoint para obtener todos los ítems (GET)
-@app.get("/items/", response_model=List[Item])
-def get_items():
-    """
-    Devuelve una lista de todos los ítems.
-    """
-    items = read_data()
-    return items
 
-# Endpoint para obtener un ítem específico por su ID (GET)
-@app.get("/items/{item_id}", response_model=Item)
-def get_item(item_id: int):
+@app.get("/users/", response_model=List[User])
+def get_users():
     """
-    Devuelve un ítem específico basado en su ID.
+    Obtiene la lista de todos los usuarios registrados.
     """
-    items = read_data()
-    for item in items:
-        if item["id"] == item_id:
-            return item
-    raise HTTPException(status_code=404, detail="Item no encontrado")
+    users = read_data()
+    return users
 
-# Endpoint para crear un nuevo ítem (POST)
-@app.post("/items/", response_model=Item)
-def create_item(item: ItemCreate):
-    """
-    Crea un nuevo ítem y lo añade al archivo JSON.
-    """
-    items = read_data()
-    
-    # Generar un ID único para el nuevo ítem
-    new_id = max([item["id"] for item in items], default=0) + 1
-    new_item = item.dict()  # Convertir el ítem a un diccionario
-    new_item["id"] = new_id  # Asignar el nuevo ID
-    
-    # Añadir el nuevo ítem a la lista y guardar
-    items.append(new_item)
-    write_data(items)
-    
-    return new_item
 
-# Endpoint para actualizar un ítem existente (PUT)
-@app.put("/items/{item_id}", response_model=Item)
-def update_item(item_id: int, updated_item: ItemCreate):
+@app.get("/users/{id_usuario}", response_model=User)
+def get_user(id_usuario: str):
     """
-    Actualiza un ítem existente basado en su ID.
-    """
-    items = read_data()
-    for index, item in enumerate(items):
-        if item["id"] == item_id:
-            # Actualizar el ítem manteniendo el mismo ID
-            items[index] = updated_item.dict()
-            items[index]["id"] = item_id  # Mantener el ID original
-            write_data(items)
-            return items[index]
-    raise HTTPException(status_code=404, detail="Item no encontrado")
+    Obtiene un usuario específico por su ID.
 
-# Endpoint para eliminar un ítem (DELETE)
-@app.delete("/items/{item_id}")
-def delete_item(item_id: int):
+    Parámetros:
+    - id_usuario: Identificador único del usuario
     """
-    Elimina un ítem basado en su ID.
+    users = read_data()
+    for user in users:
+        if user["id_usuario"] == id_usuario:
+            return user
+    raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+
+@app.post("/users/", response_model=User)
+def create_user(user: UserCreate):
     """
-    items = read_data()
-    for index, item in enumerate(items):
-        if item["id"] == item_id:
-            # Eliminar el ítem de la lista
-            items.pop(index)
-            write_data(items)
-            return {"message": "Item eliminado"}
-    raise HTTPException(status_code=404, detail="Item no encontrado")
+    Crea un nuevo usuario en el sistema.
+
+    Parámetros:
+    - user: Datos del usuario a crear
+    """
+    users = read_data()
+    if any(u["id_usuario"] == user.id_usuario for u in users):
+        raise HTTPException(status_code=400, detail="El id_usuario ya existe")
+    new_user = user.dict()
+    users.append(new_user)
+    write_data(users)
+    return new_user
+
+
+@app.put("/users/{id_usuario}", response_model=User)
+def update_user(id_usuario: str, updated_user: UserCreate):
+    """
+    Actualiza los datos de un usuario existente.
+
+    Parámetros:
+    - id_usuario: ID del usuario a actualizar
+    - updated_user: Nuevos datos del usuario
+    """
+    users = read_data()
+    for index, user in enumerate(users):
+        if user["id_usuario"] == id_usuario:
+            users[index] = updated_user.dict()
+            write_data(users)
+            return users[index]
+    raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+
+@app.patch("/users/{id_usuario}/estado")
+def update_user_status(id_usuario: str, is_active: bool):
+    """
+    Actualiza el estado de un usuario (activo/inactivo).
+
+    Parámetros:
+    - id_usuario: ID del usuario
+    - is_active: Nuevo estado del usuario
+    """
+    users = read_data()
+    for index, user in enumerate(users):
+        if user["id_usuario"] == id_usuario:
+            users[index]["is_active"] = is_active
+            write_data(users)
+            return {"message": f"Estado del usuario actualizado a: {'activo' if is_active else 'inactivo'}"}
+    raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+
+@app.delete("/users/{id_usuario}")
+def delete_user(id_usuario: str):
+    """
+    Elimina un usuario del sistema.
+
+    Parámetros:
+    - id_usuario: Identificador único del usuario a eliminar
+    """
+    users = read_data()
+    for index, user in enumerate(users):
+        if user["id_usuario"] == id_usuario:
+            deleted_user = users.pop(index)
+            write_data(users)
+            return {
+                "message": "Usuario eliminado exitosamente",
+                "usuario": f"{deleted_user['nombre']} {deleted_user['apellido']}"
+            }
+    raise HTTPException(
+        status_code=404,
+        detail=f"Usuario con ID {id_usuario} no encontrado"
+    )

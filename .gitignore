@@ -1,3 +1,7 @@
+# not upload to github
+app/data/data_filtered_pilots.json
+
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

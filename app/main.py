@@ -92,16 +92,3 @@ def get_item(item_id: int):
         if item["id"] == item_id:
             return item
     raise HTTPException(status_code=404, detail="Item no encontrado")
-
-# Endpoint para crear un nuevo ítem (POST)
-@app.post("/items/", response_model=Item)
-def create_item(item: ItemCreate):
-    """
-    Crea un nuevo ítem y lo guarda en el archivo JSON.
-    """
-    items = read_data()
-    new_item = item.dict()
-    new_item["id"] = len(items)  # Asigna un ID único al nuevo ítem
-    items.append(new_item)
-    write_data(items)
-    return new_item

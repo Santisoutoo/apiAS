@@ -1,5 +1,5 @@
 fastapi
 uvicorn
-sqlalchemy
-databases
 pydantic
+supabase-py
+python-dotenv

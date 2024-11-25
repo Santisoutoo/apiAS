@@ -1,5 +1,6 @@
 # not upload to github
 app/data/data_filtered_pilots.json
+app/data/response_data.json
 
 
 # Byte-compiled / optimized / DLL files

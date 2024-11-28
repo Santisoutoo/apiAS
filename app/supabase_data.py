@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 
 class SupabaseAPI():
 
-    def __init__(self, tabla, select):
+    def __init__(self, tabla, select, data):
         # Cargar las variables de entorno desde el archivo .env
         load_dotenv()
 
@@ -24,19 +24,44 @@ class SupabaseAPI():
 
         self.tabla = tabla
         self.select = select
+        self.data = data
 
     def fetch_data(self):
         return self.supabase.table(self.tabla).select(self.select).execute()
 
+    def post_data(self):
+        response = (
+            self.supabase.table(self.tabla)
+            .insert(self.data)
+            .execute()
+        )
+        return response
+
 
 # Ejemplo de uso
 if __name__ == "__main__":
-    api = SupabaseAPI("users", "surname")
-    response = api.fetch_data()
-    print("Datos de la respuesta:", response.data)
-    if response.data:
-        print("Datos obtenidos de la tabla 'users':")
-        for record in response.data:
-            print(record)
-    else:
-        print("No se encontraron registros en la tabla 'users'.")
+    # Crear una instancia de SupabaseAPI
+    api = SupabaseAPI(
+        tabla="users",
+        select="*",
+        data={
+            "nick": "valor1",
+            "name": "valor2",
+            "surname": "valor3",
+            "gender": "valor4",
+            "email": "valor5",
+            "password": "valor6"
+        }
+    )
+
+    # Probar la función fetch_data
+    fetch_response = api.fetch_data()
+    print("Fetch Response:", fetch_response)
+
+    # Probar la función post_data
+    post_response = api.post_data()
+    print("Post Response:", post_response)
+
+    # Probar la función fetch_data
+    fetch_response = api.fetch_data()
+    print("Fetch Response:", fetch_response)

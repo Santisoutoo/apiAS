@@ -3,8 +3,9 @@ import pandas as pd
 import asyncio
 import json
 
+
 class sesion():
-    
+
     def __init__(self, year, circuit, session, drivers):
         self.year: int = year
         self.circuit: str = circuit
@@ -30,34 +31,37 @@ class sesion():
         if carga_sesion.laps is not None:
             self.session_data = carga_sesion.laps.reset_index()  # Si hay vueltas, las asignamos
         else:
-            self.session_data = pd.DataFrame()  # Si no hay vueltas, asignamos un DataFrame vacío
+            # Si no hay vueltas, asignamos un DataFrame vacío
+            self.session_data = pd.DataFrame()
         print("Contenido de `SesionState.session_data`:", self.session_data)
-        
 
     async def filter_by_driver(self):
         if self.session_data is not None and not self.session_data.empty:
             # Filtrar las vueltas por los nombres de los pilotos
-            self.data_filtered_pilots = self.session_data[self.session_data['Driver'].isin(self.drivers)]
-            # Reseteo del índice                                 
+            self.data_filtered_pilots = self.session_data[self.session_data['Driver'].isin(
+                self.drivers)]
+            # Reseteo del índice
             self.data_filtered_pilots.reset_index(drop=True, inplace=True)
-            print("Contenido de `SesionState.data_filtered_pilots`:", self.data_filtered_pilots)
+            print("Contenido de `SesionState.data_filtered_pilots`:",
+                  self.data_filtered_pilots)
         else:
             print("Error: Los datos de la sesión no están disponibles. Asegúrate de ejecutar `load_sesion` primero.")
-    
+
     async def _drop_tables(self):
         """
         Elimina las columnas especificadas en `variables_to_change` del DataFrame `data_filtered_pilots`.
         """
         variables_to_drop = [
             'Sector1SessionTime',
-            'Sector2SessionTime', 
+            'Sector2SessionTime',
             'Sector3SessionTime',
             'LapStartTime',
             'LapStartDate',
         ]
-        
+
         if self.data_filtered_pilots is not None and not self.data_filtered_pilots.empty:
-            self.data_filtered_pilots.drop(columns=variables_to_drop, inplace=True, errors='ignore')
+            self.data_filtered_pilots.drop(
+                columns=variables_to_drop, inplace=True, errors='ignore')
             print("Columnas eliminadas:", variables_to_drop)
         else:
             print("Error: No hay datos filtrados disponibles para modificar. Asegúrate de ejecutar `filter_by_driver` primero.")
@@ -70,13 +74,15 @@ class sesion():
             'Time', 'LapTime',
             'Sector1Time', 'Sector2Time', 'Sector3Time'
         ]
-        
+
         if self.data_filtered_pilots is not None and not self.data_filtered_pilots.empty:
             for var in variables_to_change:
                 self.data_filtered_pilots[var] = self.data_filtered_pilots[var].apply(
-                    lambda x: f"{int(x.total_seconds() // 60)}:{x.total_seconds() % 60:.3f}" if pd.notnull(x) else None
+                    lambda x: f"{int(x.total_seconds(
+                    ) // 60)}:{x.total_seconds() % 60:.3f}" if pd.notnull(x) else None
                 )
-            print("Unidades de tiempo cambiadas a minutos y segundos para las variables:", variables_to_change)
+            print("Unidades de tiempo cambiadas a minutos y segundos para las variables:",
+                  variables_to_change)
         else:
             print("Error: No hay datos filtrados disponibles para modificar. Asegúrate de ejecutar `filter_by_driver` primero.")
 
@@ -88,7 +94,7 @@ class sesion():
             # Eliminar los índices llamando a la función _drop_tables
             await self._drop_tables()
             await self._change_units()
-            
+
             # Convertir a JSON con la estructura especificada
             json_data = self.data_filtered_pilots.apply(
                 lambda row: {
@@ -107,13 +113,16 @@ class sesion():
                     }
                 }, axis=1
             ).tolist()
-            
+
             # Guardar el archivo JSON
             with open("data/data_filtered_pilots.json", "w", encoding="utf-8") as f:
                 json.dump(json_data, f, indent=4, ensure_ascii=False)
             print("Archivo JSON guardado en: app/data/data_filtered_pilots.json")
         else:
             print("Error: No hay datos filtrados disponibles para guardar. Asegúrate de ejecutar `filter_by_driver` primero.")
+
+    # TODO: crear metodos get, put, post y delete para los circuitos
+
 
 def get_user_input():
     """
@@ -126,6 +135,7 @@ def get_user_input():
         "Introduce los códigos de los pilotos separados por comas (ej. VER,LEC,HAM): "
     ).split(',')
     return year, circuit, session, drivers
+
 
 async def main():
     """

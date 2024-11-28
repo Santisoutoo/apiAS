@@ -37,6 +37,9 @@ class SupabaseAPI():
         )
         return response
 
+    # TODO:
+    # Crear metodos update y delete para users
+
 
 # Ejemplo de uso
 if __name__ == "__main__":

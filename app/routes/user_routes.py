@@ -2,8 +2,8 @@
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from typing import List
-# Importamos el cliente de Supabase para interactuar con la base de datos de Supabase.
-from app.supabase import supabase
+# Importamos el cliente de SupabaseAPI para interactuar con la base de datos de SupabaseAPI.
+from app.supabase_data import SupabaseAPI
 # Importamos la función que verifica si el usuario tiene permisos de administrador.
 from app.routes.auth import admin_required
 
@@ -40,18 +40,18 @@ class UserCreate(BaseModel):
     is_active: bool
     rol: str
 
-# Funciones auxiliares para interactuar con la base de datos de Supabase.
+# Funciones auxiliares para interactuar con la base de datos de SupabaseAPI.
 
 
 def fetch_users():
     """
-    Obtiene todos los usuarios de la tabla 'users' en Supabase.
+    Obtiene todos los usuarios de la tabla 'users' en SupabaseAPI.
 
     Retorna:
     - Una lista de usuarios si la consulta es exitosa.
     - Lanza una excepción HTTP 500 si ocurre un error al obtener los usuarios.
     """
-    response = supabase.table("users").select("*").execute()
+    response = SupabaseAPI.table("users").select("*").execute()
     if response.error:
         raise HTTPException(
             status_code=500, detail="Error al obtener usuarios")
@@ -69,7 +69,7 @@ def fetch_user_by_id(id_usuario: str):
     - Los datos del usuario si la consulta es exitosa.
     - Lanza una excepción HTTP 404 si el usuario no se encuentra.
     """
-    response = supabase.table("users").select(
+    response = SupabaseAPI.table("users").select(
         "*").eq("id_usuario", id_usuario).execute()
     if response.error:
         raise HTTPException(status_code=500, detail="Error al obtener usuario")
@@ -80,14 +80,14 @@ def fetch_user_by_id(id_usuario: str):
 
 def insert_user(user_data: dict):
     """
-    Inserta un nuevo usuario en la tabla 'users' de Supabase.
+    Inserta un nuevo usuario en la tabla 'users' de SupabaseAPI.
 
     Parámetros:
     - user_data: Los datos del usuario a insertar.
 
     Lanza una excepción HTTP 500 si ocurre un error al insertar el usuario.
     """
-    response = supabase.table("users").insert(user_data).execute()
+    response = SupabaseAPI.table("users").insert(user_data).execute()
     if response.error:
         raise HTTPException(status_code=500, detail="Error al crear usuario")
 
@@ -102,7 +102,7 @@ def update_user_data(id_usuario: str, updates: dict):
 
     Lanza una excepción HTTP 500 si ocurre un error al actualizar los datos.
     """
-    response = supabase.table("users").update(
+    response = SupabaseAPI.table("users").update(
         updates).eq("id_usuario", id_usuario).execute()
     if response.error:
         raise HTTPException(
@@ -118,7 +118,7 @@ def delete_user_from_db(id_usuario: str):
 
     Lanza una excepción HTTP 500 si ocurre un error al eliminar el usuario.
     """
-    response = supabase.table("users").delete().eq(
+    response = SupabaseAPI.table("users").delete().eq(
         "id_usuario", id_usuario).execute()
     if response.error:
         raise HTTPException(
@@ -166,7 +166,7 @@ def create_user(user: UserCreate):
     Si el 'id_usuario' ya existe, lanza una excepción HTTP 400.
     """
     # Comprobamos si el usuario ya existe
-    existing_user = supabase.table("users").select(
+    existing_user = SupabaseAPI.table("users").select(
         "*").eq("id_usuario", user.id_usuario).execute()
     if existing_user.data:
         raise HTTPException(status_code=400, detail="El id_usuario ya existe")

@@ -2,7 +2,8 @@ import os
 from supabase import create_client, Client
 from dotenv import load_dotenv
 
-class SupabaseAPI:
+
+class SupabaseAPI():
 
     def __init__(self, tabla, select):
         # Cargar las variables de entorno desde el archivo .env
@@ -10,7 +11,7 @@ class SupabaseAPI:
 
         # Obtener la URL de Supabase desde las variables de entorno
         SUPABASE_URL = os.getenv("SUPABASE_URL")
-        
+
         # Obtener la clave de Supabase desde las variables de entorno
         SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 
@@ -26,6 +27,7 @@ class SupabaseAPI:
 
     def fetch_data(self):
         return self.supabase.table(self.tabla).select(self.select).execute()
+
 
 # Ejemplo de uso
 if __name__ == "__main__":

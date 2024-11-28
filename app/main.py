@@ -1,11 +1,12 @@
 # Importamos la librería FastAPI para crear la aplicación web.
 from fastapi import FastAPI
-
+from app.supabase_data import SupabaseAPI
 # Importamos el router que contiene las rutas relacionadas con los usuarios.
 # Importamos las rutas definidas en user_routes.py.
 from app.routes.user_routes import user_router
 from typing import List, Optional
 from pydantic import BaseModel
+
 from fastapi import HTTPException
 import json
 
@@ -43,16 +44,20 @@ class Description(BaseModel):
     FreshTyre: bool
     Team: str
 
+
 class Item(BaseModel):
     id: int
     name: str
     description: Description
+
 
 class ItemCreate(BaseModel):
     name: str
     description: Description
 
 # Función auxiliar para leer los datos del archivo JSON
+
+
 def read_data():
     try:
         with open("app/data/data_filtered_pilots.json", "r", encoding="utf-8") as file:
@@ -62,17 +67,22 @@ def read_data():
                 if 'id' not in item:
                     item['id'] = index
                 if 'name' not in item:
-                    item['name'] = f"Item {index}"  # Asignar un nombre por defecto si falta
+                    # Asignar un nombre por defecto si falta
+                    item['name'] = f"Item {index}"
             return data
     except FileNotFoundError:
         return []
 
 # Función auxiliar para escribir datos en el archivo JSON
+
+
 def write_data(data):
     with open("app/data/data_filtered_pilots.json", "w", encoding="utf-8") as file:
         json.dump(data, file, indent=4)
 
 # Endpoint para obtener todos los ítems (GET)
+
+
 @app.get("/items/", response_model=List[Item])
 def get_items():
     """
@@ -82,6 +92,8 @@ def get_items():
     return items
 
 # Endpoint para obtener un ítem específico por su ID (GET)
+
+
 @app.get("/items/{item_id}", response_model=Item)
 def get_item(item_id: int):
     """
@@ -92,3 +104,33 @@ def get_item(item_id: int):
         if item["id"] == item_id:
             return item
     raise HTTPException(status_code=404, detail="Item no encontrado")
+
+
+@app.get("/users/supabase", tags=["Usuarios"])
+async def get_users_from_supabase():
+    """
+    Obtiene todos los usuarios desde Supabase usando fetch_data.
+    """
+    try:
+        # Crear instancia de SupabaseAPI
+        supabase_client = SupabaseAPI("users", "*")
+
+        # Llamar a fetch_data sin await
+        users = supabase_client.fetch_data()
+
+        if not users:
+            return {
+                "message": "No se encontraron usuarios",
+                "data": []
+            }
+
+        return {
+            "message": "Usuarios obtenidos exitosamente",
+            "data": users
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error al obtener datos de Supabase: {str(e)}"
+        )

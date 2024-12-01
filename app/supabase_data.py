@@ -4,7 +4,6 @@ from dotenv import load_dotenv
 
 
 class SupabaseAPI():
-
     def __init__(self, tabla, select, data):
         # Cargar las variables de entorno desde el archivo .env
         load_dotenv()

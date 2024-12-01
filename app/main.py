@@ -144,7 +144,7 @@ async def post_users_to_supabase(
     email: str,
     password: str,
     nick: str,
-    rol: str
+    role: str
 ):
     """
     Inserta un nuevo usuario en la tabla 'users' de Supabase.
@@ -158,7 +158,7 @@ async def post_users_to_supabase(
             "gender": gender,
             "email": email,
             "password": password,
-            "rol": rol,
+            "role": role,
         }
         supabase_client = SupabaseAPI(
             tabla="users", select="*", data=data_to_insert)

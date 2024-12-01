@@ -59,18 +59,6 @@ class UserUpdate(BaseModel):
     gender: Optional[str] = None
     email: Optional[str] = None
 
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "name": "Juan",
-                "surname": "Pérez",
-                "gender": "M",
-                "email": "juan@email.com",
-
-
-            }
-        }
-
 
 # Función auxiliar para leer los datos del archivo JSON
 
@@ -195,34 +183,58 @@ async def post_users_to_supabase(
         )
 
 
-@app.put("/users/{nick}", tags=["Usuarios"])
-async def update_user(nick: str, user_update: UserUpdate):
+@app.put("/users/{email}", tags=["Usuarios"])
+async def update_user(email: str, user_update: UserUpdate):
+    """
+    Actualiza la información de un usuario existente.
+    Args:
+        email: Email del usuario a actualizar
+        user_update: Datos actualizados del usuario
+    Returns:
+        dict: Mensaje de éxito y datos actualizados
+    """
     try:
-        # Solo incluir campos establecidos
-        update_data = user_update.model_dump(exclude_unset=True)
+        # Solo incluir campos que no son None
+        update_data = {k: v for k,
+                       v in user_update.model_dump().items() if v is not None}
 
-        # Crear instancia con datos limpios
+        if not update_data:
+            raise HTTPException(
+                status_code=400,
+                detail="No se proporcionaron datos para actualizar"
+            )
+
+        # Crear instancia de SupabaseAPI y actualizar usuario
         supabase = SupabaseAPI(tabla="users", select="*", data=update_data)
-        response = supabase.update_user(nick, update_data)
+        response = supabase.update_user(email, update_data)
 
-        return {"message": "Usuario actualizado exitosamente", "data": response.data}
+        return {
+            "message": "Usuario actualizado exitosamente",
+            "data": response.data
+        }
+
     except ValueError as ve:
-        raise HTTPException(status_code=400, detail=str(ve))
-    except Exception as e:
         raise HTTPException(
-            status_code=500, detail=f"Error actualizando usuario: {str(e)}")
-
-
-@app.delete("/users/{nick}", tags=["Usuarios"])
-async def delete_user(nick: str):
-    """Endpoint para eliminar usuario"""
-    try:
-        # Corregimos la instanciación usando SupabaseAPI con los parámetros correctos
-        supabase = SupabaseAPI(tabla="users", select="*", data=None)
-        response = supabase.delete_user(nick)
-        return {"message": "Usuario eliminado exitosamente", "data": response.data}
+            status_code=404,
+            detail=str(ve)
+        )
     except Exception as e:
         raise HTTPException(
             status_code=500,
-            detail=f"Error eliminando usuario: {str(e)}"
+            detail=f"Error actualizando usuario: {str(e)}"
         )
+
+
+# En main.py
+@app.delete("/users/{nick}", tags=["Usuarios"])
+async def delete_user(nick: str):
+    try:
+        supabase_client = SupabaseAPI(
+            tabla="users",
+            select="*",
+            data=None
+        )
+        response = supabase_client.delete_user(nick)  # Removido el await
+        return {"message": f"Usuario {nick} eliminado exitosamente", "data": response.data}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))

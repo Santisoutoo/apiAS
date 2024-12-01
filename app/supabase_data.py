@@ -38,71 +38,79 @@ class SupabaseAPI():
 
     # TODO:
     # Crear metodos update y delete para users
-    def update_user(self, nick: str, updated_data: dict):
-        """Actualiza información del usuario"""
+    def update_user(self, email: str, updated_data: dict):
+        """
+        Actualiza la información de un usuario basándose en su email.
+        Args:
+            email (str): Email del usuario a actualizar
+            updated_data (dict): Datos a actualizar
+        Returns:
+            Response: Respuesta de Supabase con los datos actualizados
+        """
         try:
-            # Verificar usuario
+            print(f"Iniciando actualización para usuario con email: {email}")
+
+            # Verificar usuario existente
             check_user = (
                 self.supabase.table(self.tabla)
                 .select("*")
-                .eq('nick', nick)
-                .single()  # Aseguramos que solo obtenemos un registro
+                .eq("email", email)
                 .execute()
             )
 
             if not check_user.data:
-                raise ValueError(
-                    f"El usuario {nick} no existe en la base de datos")
+                raise ValueError(f"No se encontró usuario con email: {email}")
 
-            if 'role' in updated_data or 'password' in updated_data:
-                raise ValueError(
-                    "No se pueden modificar 'role' o 'password' sin autenticación previa")
+            usuario_actual = check_user.data[0]
+            print(f"Usuario encontrado: {usuario_actual}")
+            print(f"Aplicando actualización: {updated_data}")
 
-            # Remover el nick del updated_data si es el mismo que estamos buscando
-            if 'nick' in updated_data and updated_data['nick'] == nick:
-                del updated_data['nick']
+            # Combinar datos actuales con nuevos datos
+            datos_actualizados = {**usuario_actual}
+            datos_actualizados.update(updated_data)
 
-            print(f"Ejecutando UPDATE en tabla {self.tabla}")
-            print(f"WHERE nick = {nick}")
-            print(f"SET {updated_data}")
-
+            # Realizar actualización usando datos combinados
             response = (
                 self.supabase.table(self.tabla)
-                .update(updated_data)
-                .eq('nick', nick)
+                .update(datos_actualizados)
+                .eq("email", email)
                 .execute()
             )
 
-            print(f"Respuesta UPDATE: {response}")
+            # Verificar actualización
+            if not response or not response.data:
+                verify = (
+                    self.supabase.table(self.tabla)
+                    .select("*")
+                    .eq("email", email)
+                    .execute()
+                )
+                if verify.data:
+                    return verify
 
-            if not response.data:
-                raise ValueError(f"Error al actualizar el usuario {nick}")
-
+            print(f"Actualización completada: {
+                  response.data if response.data else 'Verificar datos actualizados'}")
             return response
 
         except Exception as e:
-            print(f"Error detallado: {str(e)}")
-            raise e
+            print(f"Error en actualización: {str(e)}")
+            raise ValueError(f"Error actualizando usuario: {str(e)}")
 
     def delete_user(self, nick: str):
-        """Elimina un usuario"""
         try:
-            print(f"Intentando eliminar usuario: {nick}")
-
             response = (
-                self.supabase.table(self.tabla)
+                self.supabase.table('users')
                 .delete()
                 .eq('nick', nick)
                 .execute()
             )
 
-            print(f"Respuesta completa de delete: {response}")
-
             if not response.data:
-                raise ValueError(
-                    f"No se encontró o no se pudo eliminar el usuario {nick}")
+                raise ValueError(f"No se encontró usuario con nick: {nick}")
 
+            print(f"Usuario eliminado: {response.data}")
             return response
+
         except Exception as e:
-            print(f"Error en delete_user: {str(e)}")
-            raise e
+            print(f"Error al eliminar usuario: {str(e)}")
+            raise ValueError(f"Error eliminando usuario: {str(e)}")

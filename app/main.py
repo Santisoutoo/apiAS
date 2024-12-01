@@ -4,7 +4,7 @@ from app.supabase_data import SupabaseAPI
 # Importamos el router que contiene las rutas relacionadas con los usuarios.
 
 
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from pydantic import BaseModel
 
 from fastapi import HTTPException
@@ -50,6 +50,27 @@ class Item(BaseModel):
 class ItemCreate(BaseModel):
     name: str
     description: Description
+
+
+class UserUpdate(BaseModel):
+    """Modelo para actualización de usuarios"""
+    name: Optional[str] = None
+    surname: Optional[str] = None
+    gender: Optional[str] = None
+    email: Optional[str] = None
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "name": "Juan",
+                "surname": "Pérez",
+                "gender": "M",
+                "email": "juan@email.com",
+
+
+            }
+        }
+
 
 # Función auxiliar para leer los datos del archivo JSON
 
@@ -171,4 +192,37 @@ async def post_users_to_supabase(
         raise HTTPException(
             status_code=500,
             detail=f"Error de creación de usuario: {str(e)}"
+        )
+
+
+@app.put("/users/{nick}", tags=["Usuarios"])
+async def update_user(nick: str, user_update: UserUpdate):
+    try:
+        # Solo incluir campos establecidos
+        update_data = user_update.model_dump(exclude_unset=True)
+
+        # Crear instancia con datos limpios
+        supabase = SupabaseAPI(tabla="users", select="*", data=update_data)
+        response = supabase.update_user(nick, update_data)
+
+        return {"message": "Usuario actualizado exitosamente", "data": response.data}
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Error actualizando usuario: {str(e)}")
+
+
+@app.delete("/users/{nick}", tags=["Usuarios"])
+async def delete_user(nick: str):
+    """Endpoint para eliminar usuario"""
+    try:
+        # Corregimos la instanciación usando SupabaseAPI con los parámetros correctos
+        supabase = SupabaseAPI(tabla="users", select="*", data=None)
+        response = supabase.delete_user(nick)
+        return {"message": "Usuario eliminado exitosamente", "data": response.data}
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error eliminando usuario: {str(e)}"
         )

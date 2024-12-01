@@ -1,7 +1,7 @@
 # Importamos las dependencias necesarias de FastAPI
 from fastapi import Depends, HTTPException
 # Importamos el cliente de Supabase para interactuar con la base de datos.
-from app.supabase import supabase
+from app.supabase_data import SupabaseAPI
 
 
 # Función para obtener el usuario actual de la base de datos, basado en su 'id_usuario'.
@@ -18,7 +18,7 @@ def get_current_user(id_usuario: str):
     Si el usuario no existe, se lanza una excepción HTTP 404.
     """
     # Consulta la tabla 'users' en Supabase, seleccionando todos los campos y filtrando por el 'id_usuario'.
-    user = supabase.table("users").select(
+    user = SupabaseAPI.table("users").select(
         "*").eq("id_usuario", id_usuario).execute()
 
     # Si no se encuentra el usuario, lanzamos una excepción HTTP 404.

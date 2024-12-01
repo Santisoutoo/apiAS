@@ -1,6 +1,7 @@
 # FastAPI Project
 
-Este proyecto es una API REST básica creada con FastAPI. Implementa operaciones CRUD (Crear, Leer, Actualizar, Eliminar) para un recurso de ejemplo (`Item`), utilizando SQLAlchemy para manejar la persistencia de datos y Pydantic para la validación de esquemas.
+Este proyecto es una API REST básica creada con FastAPI. Implementa operaciones CRUD (Crear, Leer, Actualizar, Eliminar) para un recurso de ejemplo (`Item`), utilizando Supabase como gestor de base de datos que usa PostgreSQL en el backend. La API permite gestionar ítems con atributos como `id`, `name` y `description`.
+
 
 ### Requisitos
 

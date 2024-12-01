@@ -25,6 +25,7 @@ class SupabaseAPI():
         self.tabla = tabla
         self.select = select
         self.data = data
+        
 
     def fetch_data(self):
         return self.supabase.table(self.tabla).select(self.select).execute()
@@ -39,32 +40,3 @@ class SupabaseAPI():
 
     # TODO:
     # Crear metodos update y delete para users
-
-
-# Ejemplo de uso
-if __name__ == "__main__":
-    # Crear una instancia de SupabaseAPI
-    api = SupabaseAPI(
-        tabla="users",
-        select="*",
-        data={
-            "nick": "valor1",
-            "name": "valor2",
-            "surname": "valor3",
-            "gender": "valor4",
-            "email": "valor5",
-            "password": "valor6"
-        }
-    )
-
-    # Probar la función fetch_data
-    fetch_response = api.fetch_data()
-    print("Fetch Response:", fetch_response)
-
-    # Probar la función post_data
-    post_response = api.post_data()
-    print("Post Response:", post_response)
-
-    # Probar la función fetch_data
-    fetch_response = api.fetch_data()
-    print("Fetch Response:", fetch_response)

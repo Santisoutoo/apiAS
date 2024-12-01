@@ -143,7 +143,8 @@ async def post_users_to_supabase(
     gender: str,
     email: str,
     password: str,
-    nick: str
+    nick: str,
+    rol: str
 ):
     """
     Inserta un nuevo usuario en la tabla 'users' de Supabase.
@@ -156,7 +157,8 @@ async def post_users_to_supabase(
             "surname": surname,
             "gender": gender,
             "email": email,
-            "password": password
+            "password": password,
+            "rol": rol,
         }
         supabase_client = SupabaseAPI(
             tabla="users", select="*", data=data_to_insert)
@@ -172,8 +174,5 @@ async def post_users_to_supabase(
     except Exception as e:
         raise HTTPException(
             status_code=500,
-            # El error devolvería el siguiente mensaje:
-            # {'code': '23505', 'details': None, 'hint': None, 'message':
-            # 'duplicate key value violates unique constraint \"users_nick_key\"'}"
-            detail=f"Error de creación de usuario: este Nickname ya está en uso, pruebe con otro"
+            detail=f"Error de creación de usuario: {str(e)}"
         )

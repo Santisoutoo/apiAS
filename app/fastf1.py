@@ -121,8 +121,6 @@ class sesion():
         else:
             print("Error: No hay datos filtrados disponibles para guardar. Asegúrate de ejecutar `filter_by_driver` primero.")
 
-    # TODO: crear metodos get, put, post y delete para los circuitos
-
 
 def get_user_input():
     """

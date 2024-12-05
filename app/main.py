@@ -127,20 +127,6 @@ def read_users_me(current_user: str = Depends(get_current_user)):
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
     return response.data[0]
 
-# Operaciones de ítems
-@app.get("/items/", response_model=List[Item])
-def get_items():
-    items = read_data()
-    return items
-
-@app.get("/items/{item_id}", response_model=Item)
-def get_item(item_id: int):
-    items = read_data()
-    for item in items:
-        if item["id"] == item_id:
-            return item
-    raise HTTPException(status_code=404, detail="Item no encontrado")
-
 # Operaciones relacionadas con usuarios desde Supabase
 @app.get("/users/supabase", tags=["Usuarios"])
 async def get_users_from_supabase():
@@ -171,7 +157,7 @@ async def update_user(email: str, user_update: UserUpdate):
 @app.delete("/users/{nick}", tags=["Usuarios"])
 async def delete_user(nick: str):
     try:
-        supabase_client = SupabaseAPI(tabla="users", select="*", data=None)
+        supabase_client = SupabaseAPI(tabla="users", select="*")
         response = supabase_client.delete_user(nick)
         return {"message": f"Usuario {nick} eliminado exitosamente", "data": response.data}
     except Exception as e:

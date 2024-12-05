@@ -1,21 +1,24 @@
-# Importamos la librería FastAPI para crear la aplicación web.
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends, HTTPException
+from fastapi.security import OAuth2PasswordRequestForm
+from app.routes.oauth import get_current_user, create_access_token, verify_password, get_password_hash
 from app.supabase_data import SupabaseAPI
-# Importamos el router que contiene las rutas relacionadas con los usuarios.
-
-
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict
 from pydantic import BaseModel
-
-from fastapi import HTTPException
 import json
+import os
+from dotenv import load_dotenv
+from supabase import create_client
+
+# Cargar variables de entorno
+load_dotenv()
+
+# Configuración de Supabase
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # Crear la aplicación FastAPI
-# FastAPI es un marco de trabajo para construir APIs rápidas con Python 3.7+.
 app = FastAPI()
-
-
-# Ruta adicional para la raíz de la aplicación ("/")
 
 
 @app.get("/")
@@ -23,12 +26,11 @@ def read_root():
     """
     Ruta raíz de la API.
 
-    Esta ruta sirve como punto de entrada para la aplicación. 
-    Cuando se accede a la URL base (http://localhost:8000/), se devolverá un mensaje de bienvenida.
+    Cuando se accede a la URL base (http://localhost:8000/), se devuelve un mensaje de bienvenida.
     """
     return {"message": "Bienvenido a la API de gestión de usuarios"}
 
-
+# Clases Pydantic para ítems y usuarios
 class Description(BaseModel):
     DriverNumber: str
     LapTime: Optional[str] = None
@@ -53,93 +55,96 @@ class ItemCreate(BaseModel):
 
 
 class UserUpdate(BaseModel):
-    """Modelo para actualización de usuarios"""
     name: Optional[str] = None
     surname: Optional[str] = None
     gender: Optional[str] = None
     email: Optional[str] = None
 
-
-# Función auxiliar para leer los datos del archivo JSON
-
-
+# Funciones auxiliares para manejo de JSON
 def read_data():
     try:
         with open("app/data/data_filtered_pilots.json", "r", encoding="utf-8") as file:
             data = json.load(file)
-            # Añadir el índice como id a cada ítem si falta
             for index, item in enumerate(data):
                 if 'id' not in item:
                     item['id'] = index
                 if 'name' not in item:
-                    # Asignar un nombre por defecto si falta
                     item['name'] = f"Item {index}"
             return data
     except FileNotFoundError:
         return []
 
-# Función auxiliar para escribir datos en el archivo JSON
-
-
 def write_data(data):
     with open("app/data/data_filtered_pilots.json", "w", encoding="utf-8") as file:
         json.dump(data, file, indent=4)
 
-# Endpoint para obtener todos los ítems (GET)
+@app.post("/register")
+def register_user(
+    nick: str,
+    name: str,
+    surname: str,
+    gender: str,
+    email: str,
+    password: str
+):
+    hashed_password = get_password_hash(password)
+    response = supabase.table("users").insert({
+        "nick": nick,
+        "name": name,
+        "surname": surname,
+        "gender": gender,
+        "email": email,
+        "password": hashed_password,
+    }).execute()
+
+    print(response)  # Depurar la estructura de la respuesta
+    return {"message": "¡USUARIO CREADO EXITOSAMENTE!"}
 
 
+
+@app.post("/token", response_model=None)
+def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
+    response = supabase.table("users").select("*").eq("email", form_data.username).execute()
+    user = response.data[0] if response.data else None
+    if not user or not verify_password(form_data.password, user["password"]):
+        raise HTTPException(status_code=400, detail="Credenciales inválidas")
+
+    access_token = create_access_token(data={"sub": user["email"]})
+    return {"access_token": access_token, "token_type": "bearer"}
+
+
+@app.get("/users/me")
+def read_users_me(current_user: str = Depends(get_current_user)):
+    response = supabase.table("users").select("*").eq("email", current_user).execute()
+    if not response.data:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    return response.data[0]
+
+# Operaciones de ítems
 @app.get("/items/", response_model=List[Item])
 def get_items():
-    """
-    Devuelve una lista de todos los ítems.
-    """
     items = read_data()
     return items
 
-# Endpoint para obtener un ítem específico por su ID (GET)
-
-
 @app.get("/items/{item_id}", response_model=Item)
 def get_item(item_id: int):
-    """
-    Devuelve un ítem específico basado en su ID.
-    """
     items = read_data()
     for item in items:
         if item["id"] == item_id:
             return item
     raise HTTPException(status_code=404, detail="Item no encontrado")
 
-
+# Operaciones relacionadas con usuarios desde Supabase
 @app.get("/users/supabase", tags=["Usuarios"])
 async def get_users_from_supabase():
-    """
-    Obtiene todos los usuarios desde Supabase usando fetch_data.
-    """
     try:
-        # Crear instancia de SupabaseAPI
         supabase_client = SupabaseAPI("users", "*")
-
-        # Llamar a fetch_data sin await
         users = supabase_client.fetch_data()
-
         if not users:
-            return {
-                "message": "No se encontraron usuarios",
-                "data": []
-            }
-
-        return {
-            "message": "Usuarios obtenidos exitosamente",
-            "data": users
-        }
-
+            return {"message": "No se encontraron usuarios", "data": []}
+        return {"message": "Usuarios obtenidos exitosamente", "data": users}
     except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error al obtener datos de Supabase: {str(e)}"
-        )
-
+        raise HTTPException(status_code=500, detail=f"Error al obtener datos de Supabase: {str(e)}")
 
 @app.post("/users/supabase", tags=["Usuarios"])
 async def post_users_to_supabase(
@@ -151,11 +156,7 @@ async def post_users_to_supabase(
     nick: str,
     role: str
 ):
-    """
-    Inserta un nuevo usuario en la tabla 'users' de Supabase.
-    """
     try:
-        # Crear instancia de SupabaseAPI
         data_to_insert = {
             "nick": nick,
             "name": name,
@@ -165,76 +166,31 @@ async def post_users_to_supabase(
             "password": password,
             "role": role,
         }
-        supabase_client = SupabaseAPI(
-            tabla="users", select="*", data=data_to_insert)
-
-        # Llamar al método post_data
+        supabase_client = SupabaseAPI(tabla="users", select="*", data=data_to_insert)
         response = supabase_client.post_data()
-
-        return {
-            "message": "Usuario insertado exitosamente",
-            "data": response.data
-        }
-
+        return {"message": "Usuario insertado exitosamente", "data": response.data}
     except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error de creación de usuario: {str(e)}"
-        )
-
+        raise HTTPException(status_code=500, detail=f"Error de creación de usuario: {str(e)}")
 
 @app.put("/users/{email}", tags=["Usuarios"])
 async def update_user(email: str, user_update: UserUpdate):
-    """
-    Actualiza la información de un usuario existente.
-    Args:
-        email: Email del usuario a actualizar
-        user_update: Datos actualizados del usuario
-    Returns:
-        dict: Mensaje de éxito y datos actualizados
-    """
     try:
-        # Solo incluir campos que no son None
-        update_data = {k: v for k,
-                       v in user_update.model_dump().items() if v is not None}
-
+        update_data = {k: v for k, v in user_update.dict().items() if v is not None}
         if not update_data:
-            raise HTTPException(
-                status_code=400,
-                detail="No se proporcionaron datos para actualizar"
-            )
-
-        # Crear instancia de SupabaseAPI y actualizar usuario
+            raise HTTPException(status_code=400, detail="No se proporcionaron datos para actualizar")
         supabase = SupabaseAPI(tabla="users", select="*", data=update_data)
         response = supabase.update_user(email, update_data)
-
-        return {
-            "message": "Usuario actualizado exitosamente",
-            "data": response.data
-        }
-
+        return {"message": "Usuario actualizado exitosamente", "data": response.data}
     except ValueError as ve:
-        raise HTTPException(
-            status_code=404,
-            detail=str(ve)
-        )
+        raise HTTPException(status_code=404, detail=str(ve))
     except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error actualizando usuario: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Error actualizando usuario: {str(e)}")
 
-
-# En main.py
 @app.delete("/users/{nick}", tags=["Usuarios"])
 async def delete_user(nick: str):
     try:
-        supabase_client = SupabaseAPI(
-            tabla="users",
-            select="*",
-            data=None
-        )
-        response = supabase_client.delete_user(nick)  # Removido el await
+        supabase_client = SupabaseAPI(tabla="users", select="*", data=None)
+        response = supabase_client.delete_user(nick)
         return {"message": f"Usuario {nick} eliminado exitosamente", "data": response.data}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))

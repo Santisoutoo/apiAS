@@ -55,6 +55,7 @@ class ItemCreate(BaseModel):
 
 
 class UserUpdate(BaseModel):
+    nick: Optional[str] = None
     name: Optional[str] = None
     surname: Optional[str] = None
     gender: Optional[str] = None
@@ -127,9 +128,17 @@ def read_users_me(current_user: str = Depends(get_current_user)):
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
     return response.data[0]
 
+
+
+##################################################################################################
+
+
 # Operaciones relacionadas con usuarios desde Supabase
 @app.get("/users/supabase", tags=["Usuarios"])
-async def get_users_from_supabase():
+async def get_users_from_supabase(current_user: str = Depends(get_current_user)):
+    """
+    Devuelve todos los usuarios de la base de datos
+    """
     try:
         supabase_client = SupabaseAPI("users", "*")
         users = supabase_client.fetch_data()
@@ -139,15 +148,16 @@ async def get_users_from_supabase():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al obtener datos de Supabase: {str(e)}")
 
+# TODO cambiar filtro a por nick
 
 @app.put("/users/{email}", tags=["Usuarios"])
-async def update_user(email: str, user_update: UserUpdate):
+async def update_user(email: str, user_update: UserUpdate, current_user: str = Depends(get_current_user)):
     try:
         update_data = {k: v for k, v in user_update.dict().items() if v is not None}
         if not update_data:
             raise HTTPException(status_code=400, detail="No se proporcionaron datos para actualizar")
-        supabase = SupabaseAPI(tabla="users", select="*", data=update_data)
-        response = supabase.update_user(email, update_data)
+        supabase_client = SupabaseAPI(tabla="users", select="*", data=update_data)
+        response = supabase_client.update_user(email, update_data)
         return {"message": "Usuario actualizado exitosamente", "data": response.data}
     except ValueError as ve:
         raise HTTPException(status_code=404, detail=str(ve))
@@ -155,7 +165,10 @@ async def update_user(email: str, user_update: UserUpdate):
         raise HTTPException(status_code=500, detail=f"Error actualizando usuario: {str(e)}")
 
 @app.delete("/users/{nick}", tags=["Usuarios"])
-async def delete_user(nick: str):
+async def delete_user(nick: str, current_user: str = Depends(get_current_user)):
+    """
+    Borra usuario solo si está autenticado
+    """
     try:
         supabase_client = SupabaseAPI(tabla="users", select="*")
         response = supabase_client.delete_user(nick)

@@ -87,6 +87,9 @@ def register_user(
     email: str,
     password: str
 ):
+    """
+    endpoint registro usuarios
+    """
     hashed_password = get_password_hash(password)
     response = supabase.table("users").insert({
         "nick": nick,
@@ -101,10 +104,12 @@ def register_user(
     return {"message": "¡USUARIO CREADO EXITOSAMENTE!"}
 
 
-
 @app.post("/token", response_model=None)
 def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
-    response = supabase.table("users").select("*").eq("email", form_data.username).execute()
+    """
+    Crea token para la autenticación
+    """
+    response = supabase.table("users").select("*").eq("nick", form_data.username).execute()
     user = response.data[0] if response.data else None
     if not user or not verify_password(form_data.password, user["password"]):
         raise HTTPException(status_code=400, detail="Credenciales inválidas")
@@ -115,7 +120,9 @@ def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
 
 @app.get("/users/me")
 def read_users_me(current_user: str = Depends(get_current_user)):
+
     response = supabase.table("users").select("*").eq("email", current_user).execute()
+
     if not response.data:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
     return response.data[0]
@@ -146,31 +153,6 @@ async def get_users_from_supabase():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al obtener datos de Supabase: {str(e)}")
 
-@app.post("/users/supabase", tags=["Usuarios"])
-async def post_users_to_supabase(
-    name: str,
-    surname: str,
-    gender: str,
-    email: str,
-    password: str,
-    nick: str,
-    role: str
-):
-    try:
-        data_to_insert = {
-            "nick": nick,
-            "name": name,
-            "surname": surname,
-            "gender": gender,
-            "email": email,
-            "password": password,
-            "role": role,
-        }
-        supabase_client = SupabaseAPI(tabla="users", select="*", data=data_to_insert)
-        response = supabase_client.post_data()
-        return {"message": "Usuario insertado exitosamente", "data": response.data}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error de creación de usuario: {str(e)}")
 
 @app.put("/users/{email}", tags=["Usuarios"])
 async def update_user(email: str, user_update: UserUpdate):

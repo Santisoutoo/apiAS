@@ -5,52 +5,60 @@ import json
 
 
 class sesion():
+    """Clase que representa una sesión de F1 y permite cargar, filtrar y exportar datos."""
 
     def __init__(self, year, circuit, session, drivers):
+        """Inicializa la sesión con el año, circuito, tipo de sesión y pilotos.
+
+        Args:
+            year (int): Año de la sesión.
+            circuit (str): Nombre del circuito.
+            session (str): Tipo de sesión (FP1, FP2, FP3, Q, R).
+            drivers (list): Lista de códigos de los pilotos.
+        """
         self.year: int = year
         self.circuit: str = circuit
         self.session: str = session
         self.drivers: list = drivers
-        self.session_data: pd.DataFrame = None
-        self.data_filtered_pilots: pd.DataFrame = None
+        self.session_data: pd.DataFrame = None  # Datos completos de la sesión
+        self.data_filtered_pilots: pd.DataFrame = None  # Datos filtrados por piloto
 
     def __str__(self):
-        return f'Cargando la sesion {self.session} del año {self.year}'
+        """Representación en cadena de la sesión."""
+        return f'Cargando la sesión {self.session} del año {self.year}'
 
     async def load_sesion(self):
-        """
-        Carga la sesión especificicada por el usuario
-        """
+        """Carga la sesión especificada por el usuario utilizando la biblioteca fastf1."""
         carga_sesion = fastf1.get_session(
             self.year,
             self.circuit,
             self.session
         )
-        carga_sesion.load()
+        carga_sesion.load()  # Carga los datos de la sesión
 
         if carga_sesion.laps is not None:
-            self.session_data = carga_sesion.laps.reset_index()  # Si hay vueltas, las asignamos
+            # Si hay vueltas registradas, las almacenamos en session_data
+            self.session_data = carga_sesion.laps.reset_index()
         else:
             # Si no hay vueltas, asignamos un DataFrame vacío
             self.session_data = pd.DataFrame()
-        print("Contenido de `SesionState.session_data`:", self.session_data)
+        print("Contenido de `session_data`:", self.session_data)
 
     async def filter_by_driver(self):
+        """Filtra las vueltas por los nombres de los pilotos especificados."""
         if self.session_data is not None and not self.session_data.empty:
-            # Filtrar las vueltas por los nombres de los pilotos
+            # Filtrar las vueltas por los pilotos
             self.data_filtered_pilots = self.session_data[self.session_data['Driver'].isin(
                 self.drivers)]
-            # Reseteo del índice
+            # Resetear el índice
             self.data_filtered_pilots.reset_index(drop=True, inplace=True)
-            print("Contenido de `SesionState.data_filtered_pilots`:",
+            print("Contenido de `data_filtered_pilots`:",
                   self.data_filtered_pilots)
         else:
             print("Error: Los datos de la sesión no están disponibles. Asegúrate de ejecutar `load_sesion` primero.")
 
     async def _drop_tables(self):
-        """
-        Elimina las columnas especificadas en `variables_to_change` del DataFrame `data_filtered_pilots`.
-        """
+        """Elimina columnas innecesarias del DataFrame `data_filtered_pilots`."""
         variables_to_drop = [
             'Sector1SessionTime',
             'Sector2SessionTime',
@@ -67,9 +75,7 @@ class sesion():
             print("Error: No hay datos filtrados disponibles para modificar. Asegúrate de ejecutar `filter_by_driver` primero.")
 
     async def _change_units(self):
-        """
-        Cambia las unidades de tiempo de milisegundos a minutos y segundos.
-        """
+        """Convierte las unidades de tiempo de milisegundos a minutos y segundos."""
         variables_to_change = [
             'Time', 'LapTime',
             'Sector1Time', 'Sector2Time', 'Sector3Time'
@@ -87,12 +93,11 @@ class sesion():
             print("Error: No hay datos filtrados disponibles para modificar. Asegúrate de ejecutar `filter_by_driver` primero.")
 
     async def data_to_json(self):
-        """
-        Convierte `data_filtered_pilots` a JSON y lo guarda en un archivo.
-        """
+        """Convierte `data_filtered_pilots` a JSON y lo guarda en un archivo."""
         if self.data_filtered_pilots is not None and not self.data_filtered_pilots.empty:
-            # Eliminar los índices llamando a la función _drop_tables
+            # Eliminar columnas innecesarias
             await self._drop_tables()
+            # Cambiar las unidades de tiempo
             await self._change_units()
 
             # Convertir a JSON con la estructura especificada
@@ -123,9 +128,7 @@ class sesion():
 
 
 def get_user_input():
-    """
-    Solicita al usuario que introduzca los detalles de la sesión.
-    """
+    """Solicita al usuario que introduzca los detalles de la sesión."""
     year = int(input("Introduce el año de la sesión: "))
     circuit = input("Introduce el circuito de la sesión: ")
     session = input("Introduce el tipo de sesión (FP1, FP2, FP3, Q, R): ")
@@ -136,14 +139,12 @@ def get_user_input():
 
 
 async def main():
-    """
-    Función principal para cargar, filtrar y guardar datos de la sesión.
-    """
+    """Función principal para cargar, filtrar y guardar datos de la sesión."""
     year, circuit, session, drivers = get_user_input()
     f1 = sesion(year, circuit, session, drivers)
     await f1.load_sesion()
     await f1.filter_by_driver()
     await f1.data_to_json()
 
-# Run the main function
+# Ejecutar la función principal
 asyncio.run(main())

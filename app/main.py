@@ -9,10 +9,15 @@ from supabase import create_client
 
 from app.fastf1 import sesion
 from app.models import *
-from app.routes.oauth import get_current_user, create_access_token, verify_password, get_password_hash
+from app.routes.oauth import (
+    get_current_user, 
+    create_access_token, 
+    verify_password, 
+    get_password_hash, 
+    verify_admin_role
+)
 from app.supabase_data import SupabaseAPI
 from app.supabase_races import SupabaseDataCircuit
-from app.routes.oauth import verify_admin_role
 
 
 # Cargar variables de entorno
@@ -46,7 +51,7 @@ def read_root():
                                 #     #
                                 ####### 
 
-@app.get("/f1/session")
+@app.get("/f1/session", tags=["F1"])
 async def get_f1_session(year: int, circuit: str, session: str, drivers: str):
     """
     Endpoint para obtener datos de una sesión de Fórmula 1.
@@ -78,7 +83,7 @@ async def get_f1_session(year: int, circuit: str, session: str, drivers: str):
             detail=f"Error al cargar los datos de la sesión: {str(e)}"
         )
     
-@app.get("/f1/circuitos/campos")
+@app.get("/f1/circuitos/campos", tags=["F1"])
 def get_custom_fields_for_circuits(
     circuito: Optional[str] = Query(None, description="Nombre del circuito"),
     fields: Optional[List[str]] = Query(None, description="Campos deseados")
@@ -128,8 +133,8 @@ def get_custom_fields_for_circuits(
                                 #######     
 
 
-@app.get("/users/me")
-def read_users_me(current_user: str = Depends(get_current_user)):
+@app.get("/users/me", tags=["Usuarios"])
+def read_users_me(current_user: str = Depends(get_current_user), tags=["Usuarios"]):
 
     response = supabase.table("users").select("*").eq("email", current_user).execute()
 
@@ -217,7 +222,7 @@ def update_f1_calendar(
                                     ########
 
 
-@app.post("/register")
+@app.post("/register", tags=["Usuarios"])
 def register_user(
     nick: str,
     name: str,

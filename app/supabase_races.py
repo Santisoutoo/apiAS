@@ -56,20 +56,22 @@ class SupabaseDataCircuit():
         )
         return response.data
     
-    def update_circuit_information(self, circuit_id: int, update_data: Dict):
+    def update_circuit_information(self, circuit_name: str, update_data: Dict):
         """
         Actualiza la información de un circuito en la tabla `datos_circuitos` de Supabase.
         Args:
-            circuit_id (int): ID del circuito a actualizar.
-            update_data (Dict): Diccionario con los campos a actualizar.
+            circuit_name (str): Nombre del circuito a actualizar.
+            update_data (Dict): Diccionario con los campos a actualizar (excluyendo el nombre del circuito).
         """
+        if "circuito" in update_data:
+            update_data.pop("circuito")  # Evitar cambiar el nombre del circuito
         response = (
             self.supabase.table(self.tabla)
             .update(update_data)
-            .eq("id", circuit_id)
+            .eq("circuito", circuit_name)
             .execute()
         )
-        return response
+        return response.data
     
     def create_race(self, race_data: Dict):
         """

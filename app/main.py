@@ -306,7 +306,22 @@ async def update_user(nick: str, user_update: UserUpdate, current_user: str = De
 
 
 # TODO
-@app.put("/users/{nick}", tags=["Usuarios"])
-def update_f1_calendar():
-    pass
+@app.put("/f1/calendar/update/{circuit_name}", tags=["Usuarios"])
+def update_f1_calendar(circuit_name: str = Path(..., description="Nombre del circuito a actualizar"), update_data: RaceData = Body(...)):
+    """
+    Endpoint para actualizar información de un circuito dado su nombre.
+    Args:
+        circuit_name (str): Nombre del circuito a actualizar.
+        update_data (CircuitData): Datos a actualizar.
+    Returns:
+        dict: Respuesta de la base de datos.
+    """
+    try:
+        # Conexión con SupabaseDataCircuit
+        supabase_circuit = SupabaseDataCircuit(tabla="datos_circuitos")
+        response = supabase_circuit.update_circuit_information(circuit_name, update_data.dict())
 
+        # Validar la respuesta
+        return {"message": "Información del circuito actualizada exitosamente", "data": response}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")

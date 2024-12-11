@@ -12,6 +12,7 @@ from app.models import *
 from app.routes.oauth import get_current_user, create_access_token, verify_password, get_password_hash
 from app.supabase_data import SupabaseAPI
 from app.supabase_races import SupabaseDataCircuit
+from app.routes.oauth import verify_admin_role
 
 
 # Cargar variables de entorno
@@ -231,7 +232,8 @@ def register_user(
     surname: str,
     gender: str,
     email: str,
-    password: str
+    password: str,
+    role:str="user"
 ):
     """
     endpoint registro usuarios
@@ -244,47 +246,40 @@ def register_user(
         "gender": gender,
         "email": email,
         "password": hashed_password,
+        "role": role
     }).execute()
 
     print(response)  # Depurar la estructura de la respuesta
     return {"message": "¡USUARIO CREADO EXITOSAMENTE!"}
 
 
-@app.post("/token", response_model=None)
+@app.post("/token")
 def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
-    """
-    Crea token para la autenticación
-    """
     response = supabase.table("users").select("*").eq("nick", form_data.username).execute()
     user = response.data[0] if response.data else None
+
     if not user or not verify_password(form_data.password, user["password"]):
         raise HTTPException(status_code=400, detail="Credenciales inválidas")
 
-    access_token = create_access_token(data={"sub": user["email"]})
+    # Asegúrate de incluir el rol al generar el token
+    access_token = create_access_token(data={"sub": user["email"], "role": user.get("role")})
     return {"access_token": access_token, "token_type": "bearer"}
 
 
-@app.post("/f1/calendar/new")
-def add_new_race(race_data: RaceData):
+
+@app.post("/f1/calendar/new", tags=["F1"])
+def add_new_race(race_data: RaceData, current_user: dict = Depends(verify_admin_role)):
     """
     Endpoint para añadir una nueva carrera al calendario de F1.
-    Args:
-        race_data (RaceData): Datos de la carrera a insertar.
-    Returns:
-        dict: Respuesta de la base de datos.
     """
     try:
-        # Convertir el modelo a un diccionario
         race_data_dict = race_data.dict()
-
-        # Conexión con SupabaseDataCircuit
         supabase_circuit = SupabaseDataCircuit(tabla="datos_circuitos")
         response = supabase_circuit.create_race(race_data_dict)
-
-        # Validar la respuesta
         return {"message": "Carrera añadida exitosamente", "data": response}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+
     
                                 ##########
                                 #        #

@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Depends, HTTPException, Query, Body
 from fastapi.security import OAuth2PasswordRequestForm
+from fastapi.params import Path
 import os
 from dotenv import load_dotenv
 from supabase import create_client
@@ -218,10 +219,24 @@ async def delete_user(nick: str, current_user: str = Depends(get_current_user)):
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
     
-@app.delete("/f1")
-async def delete_circuito():
-    pass
+@app.delete("/f1/calendar/delete/{race_name}")
+def delete_race(race_name: str = Path(..., description="Nombre de la carrera a eliminar")):
+    """
+    Endpoint para eliminar una carrera del calendario de F1 en base al nombre.
+    Args:
+        race_name (str): Nombre de la carrera a eliminar.
+    Returns:
+        dict: Respuesta de la base de datos.
+    """
+    try:
+        # Conexión con SupabaseDataCircuit
+        supabase_circuit = SupabaseDataCircuit(tabla="datos_circuitos")
+        response = supabase_circuit.delete_race(race_name)
 
+        # Validar la respuesta
+        return {"message": "Carrera eliminada exitosamente", "data": response}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
 #######
 #     #
 # GET #

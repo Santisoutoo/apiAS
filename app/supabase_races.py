@@ -42,11 +42,19 @@ class SupabaseDataCircuit():
             execute()
         return response
     
-    def eliminate_circuit(self, circuito_eliminar):
-        return self.supabase.table(self.tabla) \
-            .delete() \
-            .eq(self.circuito, circuito_eliminar) \
+    def delete_race(self, race_name: str):
+        """
+        Elimina una carrera de la tabla `datos_circuitos` de Supabase en base al nombre.
+        Args:
+            race_name (str): Nombre de la carrera a eliminar.
+        """
+        response = (
+            self.supabase.table(self.tabla)
+            .delete()
+            .eq("circuito", race_name)
             .execute()
+        )
+        return response.data
     
     def update_circuit_information(self, circuit_id: int, update_data: Dict):
         """

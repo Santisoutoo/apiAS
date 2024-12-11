@@ -1,13 +1,17 @@
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.security import OAuth2PasswordRequestForm
-from app.routes.oauth import get_current_user, create_access_token, verify_password, get_password_hash
-from app.supabase_data import SupabaseAPI
-from typing import List, Optional, Dict
-from pydantic import BaseModel
-import json
 import os
 from dotenv import load_dotenv
 from supabase import create_client
+import asyncio
+
+from app.routes.oauth import get_current_user, create_access_token, verify_password, get_password_hash
+from app.supabase_data import SupabaseAPI
+from app.models import *
+from app.utilidades import read_data, write_data
+from app.fastf1 import sesion
+
+
 
 # Cargar variables de entorno
 load_dotenv()
@@ -30,54 +34,58 @@ def read_root():
     """
     return {"message": "Bienvenido a la API de gestión de usuarios"}
 
-# Clases Pydantic para ítems y usuarios
-class Description(BaseModel):
-    DriverNumber: str
-    LapTime: Optional[str] = None
-    Sector1Time: Optional[str] = None
-    Sector2Time: Optional[str] = None
-    Sector3Time: Optional[str] = None
-    Compound: str
-    TyreLife: float
-    FreshTyre: bool
-    Team: str
 
 
-class Item(BaseModel):
-    id: int
-    name: str
-    description: Description
 
+# OPERACIONES FASTF1
 
-class ItemCreate(BaseModel):
-    name: str
-    description: Description
+#######
+#     #
+# GET #
+#     #
+####### 
 
-
-class UserUpdate(BaseModel):
-    nick: Optional[str] = None
-    name: Optional[str] = None
-    surname: Optional[str] = None
-    gender: Optional[str] = None
-    email: Optional[str] = None
-
-# Funciones auxiliares para manejo de JSON
-def read_data():
+@app.get("/f1/session")
+async def get_f1_session(year: int, circuit: str, session: str, drivers: str):
+    """
+    Endpoint para obtener datos de una sesión de Fórmula 1.
+    """
     try:
-        with open("app/data/data_filtered_pilots.json", "r", encoding="utf-8") as file:
-            data = json.load(file)
-            for index, item in enumerate(data):
-                if 'id' not in item:
-                    item['id'] = index
-                if 'name' not in item:
-                    item['name'] = f"Item {index}"
-            return data
-    except FileNotFoundError:
-        return []
+        driver_list = drivers.split(',')
+        f1_session = sesion(year, circuit, session, driver_list)
+        await f1_session.load_sesion()
+        await f1_session.filter_by_driver()
 
-def write_data(data):
-    with open("app/data/data_filtered_pilots.json", "w", encoding="utf-8") as file:
-        json.dump(data, file, indent=4)
+        # Validar si hay datos después del filtro
+        if f1_session.data_filtered_pilots is not None and not f1_session.data_filtered_pilots.empty:
+            # Limpieza adicional del DataFrame
+            clean_data = f1_session.data_filtered_pilots.fillna(0).replace(
+                [float('inf'), float('-inf')], 0
+            )
+            return {
+                "message": "Datos obtenidos exitosamente",
+                "data": clean_data.to_dict(orient="records"),
+            }
+        else:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No se encontraron datos para los pilotos especificados ({', '.join(driver_list)}). Verifica el nombre del piloto o los parámetros de la sesión."
+            )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error al cargar los datos de la sesión: {str(e)}"
+        )
+
+
+# OPERACIONES SUPABASE
+
+########
+#      #
+# POST #
+#      #
+########
+
 
 @app.post("/register")
 def register_user(
@@ -118,51 +126,12 @@ def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
     access_token = create_access_token(data={"sub": user["email"]})
     return {"access_token": access_token, "token_type": "bearer"}
 
+##########
+#        #
+# DELETE #
+#        #
+##########
 
-@app.get("/users/me")
-def read_users_me(current_user: str = Depends(get_current_user)):
-
-    response = supabase.table("users").select("*").eq("email", current_user).execute()
-
-    if not response.data:
-        raise HTTPException(status_code=404, detail="Usuario no encontrado")
-    return response.data[0]
-
-
-
-##################################################################################################
-
-
-# Operaciones relacionadas con usuarios desde Supabase
-@app.get("/users/supabase", tags=["Usuarios"])
-async def get_users_from_supabase(current_user: str = Depends(get_current_user)):
-    """
-    Devuelve todos los usuarios de la base de datos
-    """
-    try:
-        supabase_client = SupabaseAPI("users", "*")
-        users = supabase_client.fetch_data()
-        if not users:
-            return {"message": "No se encontraron usuarios", "data": []}
-        return {"message": "Usuarios obtenidos exitosamente", "data": users}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error al obtener datos de Supabase: {str(e)}")
-
-# TODO cambiar filtro a por nick
-
-@app.put("/users/{email}", tags=["Usuarios"])
-async def update_user(email: str, user_update: UserUpdate, current_user: str = Depends(get_current_user)):
-    try:
-        update_data = {k: v for k, v in user_update.dict().items() if v is not None}
-        if not update_data:
-            raise HTTPException(status_code=400, detail="No se proporcionaron datos para actualizar")
-        supabase_client = SupabaseAPI(tabla="users", select="*", data=update_data)
-        response = supabase_client.update_user(email, update_data)
-        return {"message": "Usuario actualizado exitosamente", "data": response.data}
-    except ValueError as ve:
-        raise HTTPException(status_code=404, detail=str(ve))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error actualizando usuario: {str(e)}")
 
 @app.delete("/users/{nick}", tags=["Usuarios"])
 async def delete_user(nick: str, current_user: str = Depends(get_current_user)):
@@ -175,3 +144,106 @@ async def delete_user(nick: str, current_user: str = Depends(get_current_user)):
         return {"message": f"Usuario {nick} eliminado exitosamente", "data": response.data}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+#######
+#     #
+# GET #
+#     #
+#######     
+
+@app.get("/f1/circuitos/curiosos")
+def get_circuitos_curiosos(
+    fields: Optional[List[str]] = Query(default=None, description="Campos deseados"),
+    min_curvas: Optional[int] = Query(default=10, description="Número mínimo de curvas"),
+    max_distancia: Optional[float] = Query(default=310.0, description="Máxima distancia en km"),
+    primer_gp_desde: Optional[int] = Query(default=2010, description="Año mínimo para el primer GP")
+):
+    """
+    Endpoint para obtener los datos de los circuitos curiosos con campos personalizados.
+    """
+    try:
+        # Obtener todos los datos de la tabla
+        response = supabase_data.fetch_data()
+
+        if not response.data:
+            raise HTTPException(status_code=404, detail="No se encontraron datos en la tabla.")
+
+        # Filtrar los circuitos curiosos según los criterios
+        circuitos_curiosos = [
+            circuito for circuito in response.data
+            if circuito["curvas"] <= min_curvas
+            or circuito["distancia"] >= max_distancia
+            or circuito["primer_gp"] >= primer_gp_desde
+        ]
+
+        if not circuitos_curiosos:
+            raise HTTPException(
+                status_code=404, detail="No se encontraron circuitos curiosos con los filtros dados."
+            )
+
+        # Si se especifican campos, filtrar la respuesta
+        if fields:
+            filtered_data = [
+                {key: circuito[key] for key in fields if key in circuito}
+                for circuito in circuitos_curiosos
+            ]
+        else:
+            # Si no se especifican campos, devolver todos los datos
+            filtered_data = circuitos_curiosos
+
+        return {
+            "message": "Datos obtenidos exitosamente",
+            "data": filtered_data
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al obtener datos: {str(e)}")
+
+
+@app.get("/users/me")
+def read_users_me(current_user: str = Depends(get_current_user)):
+
+    response = supabase.table("users").select("*").eq("email", current_user).execute()
+
+    if not response.data:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    return response.data[0]
+
+# Operaciones relacionadas con usuarios desde Supabase
+@app.get("/users/supabase", tags=["Usuarios"])
+async def get_niks_from_supabase(current_user: str = Depends(get_current_user)):
+    """
+    Devuelve todos los nick de la base de datos
+    """
+    try:
+        supabase_client = SupabaseAPI("users", "nick")
+        users = supabase_client.fetch_data()
+        if not users:
+            return {"message": "No se encontraron usuarios", "data": []}
+        return {"message": "Usuarios obtenidos exitosamente", "data": users}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al obtener datos de Supabase: {str(e)}")
+
+
+##################################################################################################
+
+
+
+
+
+# TODO cambiar filtro a por nick
+@app.put("/users/{nick}", tags=["Usuarios"])
+async def update_user(nick: str, user_update: UserUpdate, current_user: str = Depends(get_current_user)):
+    try:
+        update_data = {k: v for k, v in user_update.dict().items() if v is not None and k != "nick"}
+        if not update_data:
+            raise HTTPException(status_code=400, detail="No se proporcionaron datos para actualizar")
+        supabase_client = SupabaseAPI(tabla="users", select="*")
+        response = supabase_client.update_user(nick, update_data)
+        return {"message": "Usuario actualizado exitosamente", "data": response.data}
+    except ValueError as ve:
+        raise HTTPException(status_code=404, detail=str(ve))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error actualizando usuario: {str(e)}")
+
+

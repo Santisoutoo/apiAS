@@ -39,65 +39,42 @@ class SupabaseAPI():
         )
         return response
 
-    # TODO:
-    # Crear metodos update y delete para users
-    def update_user(self, email: str, updated_data: dict):
+    def update_user(self, nick: str, updated_data: dict):
         """
-        Actualiza la información de un usuario basándose en su email.
+        Actualiza la información de un usuario basándose en su nick.
         Args:
-            email (str): Email del usuario a actualizar
-            updated_data (dict): Datos a actualizar
+            nick (str): Nick del usuario a actualizar.
+            updated_data (dict): Datos a actualizar.
         Returns:
-            Response: Respuesta de Supabase con los datos actualizados
+            Response: Respuesta de Supabase con los datos actualizados.
         """
         try:
-            print(f"Iniciando actualización para usuario con email: {email}")
-
             # Verificar usuario existente
             check_user = (
                 self.supabase.table(self.tabla)
                 .select("*")
-                .eq("email", email)
+                .eq("nick", nick)  # Asegúrate de usar "nick" aquí
                 .execute()
             )
 
             if not check_user.data:
-                raise ValueError(f"No se encontró usuario con email: {email}")
+                raise ValueError(f"No se encontró usuario con nick: {nick}")
 
-            usuario_actual = check_user.data[0]
-            print(f"Usuario encontrado: {usuario_actual}")
-            print(f"Aplicando actualización: {updated_data}")
-
-            # Combinar datos actuales con nuevos datos
-            datos_actualizados = {**usuario_actual}
-            datos_actualizados.update(updated_data)
-
-            # Realizar actualización usando datos combinados
+            # Actualizar los datos del usuario
             response = (
                 self.supabase.table(self.tabla)
-                .update(datos_actualizados)
-                .eq("email", email)
+                .update(updated_data)
+                .eq("nick", nick)  # Filtro por "nick"
                 .execute()
             )
 
-            # Verificar actualización
-            if not response or not response.data:
-                verify = (
-                    self.supabase.table(self.tabla)
-                    .select("*")
-                    .eq("email", email)
-                    .execute()
-                )
-                if verify.data:
-                    return verify
+            if not response.data:
+                raise ValueError(f"No se pudo actualizar el usuario con nick: {nick}")
 
-            print(f"Actualización completada: {
-                  response.data if response.data else 'Verificar datos actualizados'}")
             return response
-
         except Exception as e:
-            print(f"Error en actualización: {str(e)}")
             raise ValueError(f"Error actualizando usuario: {str(e)}")
+
 
     def delete_user(self, nick: str):
         try:

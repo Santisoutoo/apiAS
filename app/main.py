@@ -35,9 +35,6 @@ def read_root():
     """
     return {"message": "Bienvenido a la API de gestión de usuarios"}
 
-
-
-
 # OPERACIONES FASTF1
 
 #######
@@ -252,22 +249,28 @@ async def get_niks_from_supabase(current_user: str = Depends(get_current_user)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al obtener datos de Supabase: {str(e)}")
 
+#######
+#     #
+# PUT #
+#     #
+#######  
 
-##################################################################################################
-
-
-
-
-
-# TODO cambiar filtro a por nick
 @app.put("/users/{nick}", tags=["Usuarios"])
 async def update_user(nick: str, user_update: UserUpdate, current_user: str = Depends(get_current_user)):
+    """
+    Actualiza la información de un usuario utilizando el nick como identificador único.
+    """
     try:
+        # Filtra los campos a actualizar y excluye el campo "nick" del formulario
         update_data = {k: v for k, v in user_update.dict().items() if v is not None and k != "nick"}
+        
         if not update_data:
             raise HTTPException(status_code=400, detail="No se proporcionaron datos para actualizar")
+        
+        # Conexión a la base de datos
         supabase_client = SupabaseAPI(tabla="users", select="*")
         response = supabase_client.update_user(nick, update_data)
+
         return {"message": "Usuario actualizado exitosamente", "data": response.data}
     except ValueError as ve:
         raise HTTPException(status_code=404, detail=str(ve))

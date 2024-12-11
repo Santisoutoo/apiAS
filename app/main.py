@@ -1,18 +1,17 @@
-from fastapi import FastAPI, Depends, HTTPException, Query, Body
-from fastapi.security import OAuth2PasswordRequestForm
-from fastapi.params import Path
 import os
-from dotenv import load_dotenv
-from supabase import create_client
-import asyncio
 from typing import List, Optional
+
+from dotenv import load_dotenv
+from fastapi import FastAPI, Depends, HTTPException, Query, Body
+from fastapi.params import Path
+from fastapi.security import OAuth2PasswordRequestForm
+from supabase import create_client
+
+from app.fastf1 import sesion
+from app.models import *
 from app.routes.oauth import get_current_user, create_access_token, verify_password, get_password_hash
 from app.supabase_data import SupabaseAPI
 from app.supabase_races import SupabaseDataCircuit
-from app.models import *
-from app.utilidades import read_data, write_data
-from app.fastf1 import sesion
-
 
 
 # Cargar variables de entorno
@@ -36,13 +35,15 @@ def read_root():
     """
     return {"message": "Bienvenido a la API de gestión de usuarios"}
 
-# OPERACIONES FASTF1
+                        ########################
+                        #        FAST F1       #
+                        ########################
 
-#######
-#     #
-# GET #
-#     #
-####### 
+                                #######
+                                #     #
+                                # GET #
+                                #     #
+                                ####### 
 
 @app.get("/f1/session")
 async def get_f1_session(year: int, circuit: str, session: str, drivers: str):
@@ -114,27 +115,113 @@ def get_custom_fields_for_circuits(
         raise HTTPException(status_code=500, detail=f"Error al obtener datos: {str(e)}")
 
 
-########
-#      #
-# POST #
-#      #
-########
+
+
+                        ########################
+                        # OPERACIONES SUPABASE #
+                        ########################
+                                #######
+                                #     #
+                                # GET #
+                                #     #
+                                #######     
+
+
+@app.get("/users/me")
+def read_users_me(current_user: str = Depends(get_current_user)):
+
+    response = supabase.table("users").select("*").eq("email", current_user).execute()
+
+    if not response.data:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    return response.data[0]
+
+# Operaciones relacionadas con usuarios desde Supabase
+@app.get("/users/supabase", tags=["Usuarios"])
+async def get_niks_from_supabase(current_user: str = Depends(get_current_user)):
+    """
+    Devuelve todos los nick de la base de datos
+    """
+    try:
+        supabase_client = SupabaseAPI("users", "nick")
+        users = supabase_client.fetch_data()
+        if not users:
+            return {"message": "No se encontraron usuarios", "data": []}
+        return {"message": "Usuarios obtenidos exitosamente", "data": users}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al obtener datos de Supabase: {str(e)}")
 
 
 
+                                #######
+                                #     #
+                                # PUT #
+                                #     #
+                                #######  
+
+# TODO: INVESTIGAR COMO QUITAR EL NICK DE LA PETICION
+@app.put("/users/{nick}", tags=["Usuarios"])
+async def update_user(
+    nick: str, user_update: UserUpdate, 
+    current_user: str = Depends(get_current_user)
+):
+    """
+    Actualiza la información de un usuario utilizando el nick como identificador único.
+    """
+    try:
+        # Filtra los campos a actualizar y excluye el campo "nick" del formulario
+        update_data = {k: v for k, v in user_update.dict().items() if v is not None and k != "nick"}
+        
+        if not update_data:
+            raise HTTPException(status_code=400, detail="No se proporcionaron datos para actualizar")
+        
+        # Conexión a la base de datos
+        supabase_client = SupabaseAPI(tabla="users", select="*")
+        response = supabase_client.update_user(nick, update_data)
+
+        if not response.data:
+            raise HTTPException(status_code=404, detail=f"No se encontró usuario con nick: {nick}")
+
+        # Manipula los datos devueltos para eliminar "nick"
+        updated_data = response.data[0]
+        updated_data.pop("nick", None)  # Elimina "nick" si existe en el dict
+
+        return {"message": "Usuario actualizado exitosamente", "data": updated_data}
+    except ValueError as ve:
+        raise HTTPException(status_code=404, detail=str(ve))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error actualizando usuario: {str(e)}")
 
 
+# TODO
+@app.put("/f1/calendar/update/{circuit_name}", tags=["Usuarios"])
+def update_f1_calendar(
+    circuit_name: str = Path(..., description="Nombre del circuito a actualizar"), 
+    update_data: RaceData = Body(...)
+):
+    """
+    Endpoint para actualizar información de un circuito dado su nombre.
+    Args:
+        circuit_name (str): Nombre del circuito a actualizar.
+        update_data (CircuitData): Datos a actualizar.
+    Returns:
+        dict: Respuesta de la base de datos.
+    """
+    try:
+        # Conexión con SupabaseDataCircuit
+        supabase_circuit = SupabaseDataCircuit(tabla="datos_circuitos")
+        response = supabase_circuit.update_circuit_information(circuit_name, update_data.dict())
 
-
-
-
-# OPERACIONES SUPABASE
-
-########
-#      #
-# POST #
-#      #
-########
+        # Validar la respuesta
+        return {"message": "Información del circuito actualizada exitosamente", "data": response}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+    
+                                    ########
+                                    #      #
+                                    # POST #
+                                    #      #
+                                    ########
 
 
 @app.post("/register")
@@ -198,13 +285,12 @@ def add_new_race(race_data: RaceData):
         return {"message": "Carrera añadida exitosamente", "data": response}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
-
-
-##########
-#        #
-# DELETE #
-#        #
-##########
+    
+                                ##########
+                                #        #
+                                # DELETE #
+                                #        #
+                                ##########
 
 
 @app.delete("/users/{nick}", tags=["Usuarios"])
@@ -235,93 +321,5 @@ def delete_race(race_name: str = Path(..., description="Nombre de la carrera a e
 
         # Validar la respuesta
         return {"message": "Carrera eliminada exitosamente", "data": response}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
-#######
-#     #
-# GET #
-#     #
-#######     
-
-
-@app.get("/users/me")
-def read_users_me(current_user: str = Depends(get_current_user)):
-
-    response = supabase.table("users").select("*").eq("email", current_user).execute()
-
-    if not response.data:
-        raise HTTPException(status_code=404, detail="Usuario no encontrado")
-    return response.data[0]
-
-# Operaciones relacionadas con usuarios desde Supabase
-@app.get("/users/supabase", tags=["Usuarios"])
-async def get_niks_from_supabase(current_user: str = Depends(get_current_user)):
-    """
-    Devuelve todos los nick de la base de datos
-    """
-    try:
-        supabase_client = SupabaseAPI("users", "nick")
-        users = supabase_client.fetch_data()
-        if not users:
-            return {"message": "No se encontraron usuarios", "data": []}
-        return {"message": "Usuarios obtenidos exitosamente", "data": users}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error al obtener datos de Supabase: {str(e)}")
-
-#######
-#     #
-# PUT #
-#     #
-#######  
-
-# TODO: INVESTIGAR COMO QUITAR EL NICK DE LA PETICION
-@app.put("/users/{nick}", tags=["Usuarios"])
-async def update_user(nick: str, user_update: UserUpdate, current_user: str = Depends(get_current_user)):
-    """
-    Actualiza la información de un usuario utilizando el nick como identificador único.
-    """
-    try:
-        # Filtra los campos a actualizar y excluye el campo "nick" del formulario
-        update_data = {k: v for k, v in user_update.dict().items() if v is not None and k != "nick"}
-        
-        if not update_data:
-            raise HTTPException(status_code=400, detail="No se proporcionaron datos para actualizar")
-        
-        # Conexión a la base de datos
-        supabase_client = SupabaseAPI(tabla="users", select="*")
-        response = supabase_client.update_user(nick, update_data)
-
-        if not response.data:
-            raise HTTPException(status_code=404, detail=f"No se encontró usuario con nick: {nick}")
-
-        # Manipula los datos devueltos para eliminar "nick"
-        updated_data = response.data[0]
-        updated_data.pop("nick", None)  # Elimina "nick" si existe en el dict
-
-        return {"message": "Usuario actualizado exitosamente", "data": updated_data}
-    except ValueError as ve:
-        raise HTTPException(status_code=404, detail=str(ve))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error actualizando usuario: {str(e)}")
-
-
-# TODO
-@app.put("/f1/calendar/update/{circuit_name}", tags=["Usuarios"])
-def update_f1_calendar(circuit_name: str = Path(..., description="Nombre del circuito a actualizar"), update_data: RaceData = Body(...)):
-    """
-    Endpoint para actualizar información de un circuito dado su nombre.
-    Args:
-        circuit_name (str): Nombre del circuito a actualizar.
-        update_data (CircuitData): Datos a actualizar.
-    Returns:
-        dict: Respuesta de la base de datos.
-    """
-    try:
-        # Conexión con SupabaseDataCircuit
-        supabase_circuit = SupabaseDataCircuit(tabla="datos_circuitos")
-        response = supabase_circuit.update_circuit_information(circuit_name, update_data.dict())
-
-        # Validar la respuesta
-        return {"message": "Información del circuito actualizada exitosamente", "data": response}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")

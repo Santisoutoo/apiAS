@@ -194,29 +194,21 @@ async def update_user(
         raise HTTPException(status_code=500, detail=f"Error actualizando usuario: {str(e)}")
 
 
-# TODO
-@app.put("/f1/calendar/update/{circuit_name}", tags=["Usuarios"])
+
+@app.put("/f1/calendar/update/{circuit_name}", tags=["F1"])
 def update_f1_calendar(
-    circuit_name: str = Path(..., description="Nombre del circuito a actualizar"), 
-    update_data: RaceData = Body(...)
+    circuit_name: str, update_data: RaceData = Body(...), current_user: dict = Depends(verify_admin_role)
 ):
     """
     Endpoint para actualizar información de un circuito dado su nombre.
-    Args:
-        circuit_name (str): Nombre del circuito a actualizar.
-        update_data (CircuitData): Datos a actualizar.
-    Returns:
-        dict: Respuesta de la base de datos.
     """
     try:
-        # Conexión con SupabaseDataCircuit
         supabase_circuit = SupabaseDataCircuit(tabla="datos_circuitos")
         response = supabase_circuit.update_circuit_information(circuit_name, update_data.dict())
-
-        # Validar la respuesta
         return {"message": "Información del circuito actualizada exitosamente", "data": response}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+
     
                                     ########
                                     #      #
@@ -300,21 +292,14 @@ async def delete_user(nick: str, current_user: str = Depends(get_current_user)):
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
     
-@app.delete("/f1/calendar/delete/{race_name}")
-def delete_race(race_name: str = Path(..., description="Nombre de la carrera a eliminar")):
+@app.delete("/f1/calendar/delete/{race_name}", tags=["F1"])
+def delete_race(race_name: str, current_user: dict = Depends(verify_admin_role)):
     """
-    Endpoint para eliminar una carrera del calendario de F1 en base al nombre.
-    Args:
-        race_name (str): Nombre de la carrera a eliminar.
-    Returns:
-        dict: Respuesta de la base de datos.
+    Endpoint para eliminar una carrera del calendario de F1.
     """
     try:
-        # Conexión con SupabaseDataCircuit
         supabase_circuit = SupabaseDataCircuit(tabla="datos_circuitos")
         response = supabase_circuit.delete_race(race_name)
-
-        # Validar la respuesta
         return {"message": "Carrera eliminada exitosamente", "data": response}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")

@@ -51,10 +51,6 @@ class sesion():
                 self.drivers)]
             # Resetear el índice
             self.data_filtered_pilots.reset_index(drop=True, inplace=True)
-<<<<<<< HEAD
-            print("Contenido de `data_filtered_pilots`:",
-                  self.data_filtered_pilots)
-=======
 
             # Manejar NaN y valores infinitos
             self.data_filtered_pilots = self.data_filtered_pilots.fillna(0)  # Reemplaza NaN con 0
@@ -62,7 +58,6 @@ class sesion():
                 [float('inf'), float('-inf')], 0)  # Reemplaza valores infinitos con 0
             print("Contenido de `SesionState.data_filtered_pilots`:",
                 self.data_filtered_pilots)
->>>>>>> testSanti
         else:
             print("Error: Los datos de la sesión no están disponibles. Asegúrate de ejecutar `load_sesion` primero.")
 
@@ -133,31 +128,4 @@ class sesion():
                 json.dump(json_data, f, indent=4, ensure_ascii=False)
             print("Archivo JSON guardado en: app/data/data_filtered_pilots.json")
         else:
-<<<<<<< HEAD
             print("Error: No hay datos filtrados disponibles para guardar. Asegúrate de ejecutar `filter_by_driver` primero.")
-
-
-def get_user_input():
-    """Solicita al usuario que introduzca los detalles de la sesión."""
-    year = int(input("Introduce el año de la sesión: "))
-    circuit = input("Introduce el circuito de la sesión: ")
-    session = input("Introduce el tipo de sesión (FP1, FP2, FP3, Q, R): ")
-    drivers = input(
-        "Introduce los códigos de los pilotos separados por comas (ej. VER,LEC,HAM): "
-    ).split(',')
-    return year, circuit, session, drivers
-
-
-async def main():
-    """Función principal para cargar, filtrar y guardar datos de la sesión."""
-    year, circuit, session, drivers = get_user_input()
-    f1 = sesion(year, circuit, session, drivers)
-    await f1.load_sesion()
-    await f1.filter_by_driver()
-    await f1.data_to_json()
-
-# Ejecutar la función principal
-asyncio.run(main())
-=======
-            print("Error: No hay datos filtrados disponibles para guardar. Asegúrate de ejecutar `filter_by_driver` primero.")
->>>>>>> testSanti

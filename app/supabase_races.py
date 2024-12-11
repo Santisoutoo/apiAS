@@ -1,10 +1,10 @@
 import os
 from supabase import create_client, Client
 from dotenv import load_dotenv
-
+from typing import Dict
 
 class SupabaseDataCircuit():
-    def __init__(self, tabla, select = '*', circuit = None):
+    def __init__(self, tabla, select = '*', circuito = None):
 
         #Varibales entorno
         load_dotenv()
@@ -27,14 +27,54 @@ class SupabaseDataCircuit():
 
         self.tabla = tabla
         self.select = select
-        self.circuit = circuit
+        self.circuito = circuito
 
     def fetch_data(self):
         return self.supabase.table(self.tabla).select(self.select).execute()
-    
-    def fetch_data_by_circuit(self, tabla, circuit):
-        pass
-    
 
-    def update_number_races(self):
-        pass
+    def fetch_data_by_circuit(self, circuit: str):
+        """
+        Obtiene datos específicos de un circuito.
+        """
+        response = self.supabase.table(self.tabla).\
+            select(self.select). \
+            eq("circuito", circuit). \
+            execute()
+        return response
+    
+    def eliminate_circuit(self, circuito_eliminar):
+        return self.supabase.table(self.tabla) \
+            .delete() \
+            .eq(self.circuito, circuito_eliminar) \
+            .execute()
+    
+    def update_circuit_information(self, circuit_id: int, update_data: Dict):
+        """
+        Actualiza la información de un circuito en la tabla `datos_circuitos` de Supabase.
+        Args:
+            circuit_id (int): ID del circuito a actualizar.
+            update_data (Dict): Diccionario con los campos a actualizar.
+        """
+        response = (
+            self.supabase.table(self.tabla)
+            .update(update_data)
+            .eq("id", circuit_id)
+            .execute()
+        )
+        return response
+    
+    def create_race(self, race_data: Dict):
+        """
+        Inserta una nueva carrera en la tabla `datos_circuitos` de Supabase.
+        Args:
+            race_data (Dict): Diccionario con los datos de la carrera a insertar.
+        """
+        response = self.supabase.table(self.tabla).insert(race_data).execute()
+        return response
+
+
+
+
+
+
+

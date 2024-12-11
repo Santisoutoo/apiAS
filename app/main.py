@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException, Query
+from fastapi import FastAPI, Depends, HTTPException, Query, Body
 from fastapi.security import OAuth2PasswordRequestForm
 import os
 from dotenv import load_dotenv
@@ -113,6 +113,20 @@ def get_custom_fields_for_circuits(
         raise HTTPException(status_code=500, detail=f"Error al obtener datos: {str(e)}")
 
 
+########
+#      #
+# POST #
+#      #
+########
+
+
+
+
+
+
+
+
+
 # OPERACIONES SUPABASE
 
 ########
@@ -161,6 +175,30 @@ def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
     access_token = create_access_token(data={"sub": user["email"]})
     return {"access_token": access_token, "token_type": "bearer"}
 
+
+@app.post("/f1/calendar/new")
+def add_new_race(race_data: RaceData):
+    """
+    Endpoint para añadir una nueva carrera al calendario de F1.
+    Args:
+        race_data (RaceData): Datos de la carrera a insertar.
+    Returns:
+        dict: Respuesta de la base de datos.
+    """
+    try:
+        # Convertir el modelo a un diccionario
+        race_data_dict = race_data.dict()
+
+        # Conexión con SupabaseDataCircuit
+        supabase_circuit = SupabaseDataCircuit(tabla="datos_circuitos")
+        response = supabase_circuit.create_race(race_data_dict)
+
+        # Validar la respuesta
+        return {"message": "Carrera añadida exitosamente", "data": response}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+
+
 ##########
 #        #
 # DELETE #
@@ -179,50 +217,16 @@ async def delete_user(nick: str, current_user: str = Depends(get_current_user)):
         return {"message": f"Usuario {nick} eliminado exitosamente", "data": response.data}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
-
+    
+@app.delete("/f1")
+async def delete_circuito():
+    pass
 
 #######
 #     #
 # GET #
 #     #
 #######     
-
-@app.get("/f1/circuitos/campos")
-def get_custom_fields_for_circuits(
-    circuito: Optional[str] = Query(None, description="Nombre del circuito"),
-    fields: Optional[List[str]] = Query(None, description="Campos deseados")
-):
-    """
-    Endpoint para obtener datos personalizados de un circuito basado en los campos solicitados.
-    """
-    try:
-        # Inicializar conexión a Supabase
-        supabase_circuit = SupabaseDataCircuit(tabla="circuits", select="*")
-        response = supabase_circuit.fetch_data()
-
-        if not response.data:
-            raise HTTPException(status_code=404, detail="No se encontraron datos de circuitos.")
-
-        # Filtrar por circuito si está definido
-        circuitos = response.data
-        if circuito:
-            circuitos = [c for c in circuitos if c.get("circuito") == circuito]
-
-        if not circuitos:
-            raise HTTPException(status_code=404, detail=f"No se encontraron datos para el circuito {circuito}.")
-
-        # Si se solicitan campos específicos, filtrar los datos
-        if fields:
-            circuitos = [
-                {key: c[key] for key in fields if key in c} for c in circuitos
-            ]
-
-        return {
-            "message": "Datos obtenidos exitosamente",
-            "data": circuitos
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error al obtener datos: {str(e)}")
 
 
 @app.get("/users/me")
@@ -255,6 +259,7 @@ async def get_niks_from_supabase(current_user: str = Depends(get_current_user)):
 #     #
 #######  
 
+# TODO: INVESTIGAR COMO QUITAR EL NICK DE LA PETICION
 @app.put("/users/{nick}", tags=["Usuarios"])
 async def update_user(nick: str, user_update: UserUpdate, current_user: str = Depends(get_current_user)):
     """
@@ -271,10 +276,22 @@ async def update_user(nick: str, user_update: UserUpdate, current_user: str = De
         supabase_client = SupabaseAPI(tabla="users", select="*")
         response = supabase_client.update_user(nick, update_data)
 
-        return {"message": "Usuario actualizado exitosamente", "data": response.data}
+        if not response.data:
+            raise HTTPException(status_code=404, detail=f"No se encontró usuario con nick: {nick}")
+
+        # Manipula los datos devueltos para eliminar "nick"
+        updated_data = response.data[0]
+        updated_data.pop("nick", None)  # Elimina "nick" si existe en el dict
+
+        return {"message": "Usuario actualizado exitosamente", "data": updated_data}
     except ValueError as ve:
         raise HTTPException(status_code=404, detail=str(ve))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error actualizando usuario: {str(e)}")
 
+
+# TODO
+@app.put("/users/{nick}", tags=["Usuarios"])
+def update_f1_calendar():
+    pass
 

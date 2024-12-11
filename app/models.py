@@ -31,14 +31,14 @@ class UserUpdate(BaseModel):
     gender: Optional[str] = None
     email: Optional[str] = None
 
-class DataCircuits(BaseModel):
-    circuito: Optional[str] = None
-    primer_gp: Optional[int] = None
-    n_grandes_premios: Optional[int] = None
-    longitud: Optional[float] = None
-    vueltas: Optional[int] = None
-    curvas: Optional[int] = None
-    distancia: Optional[float] = None
-    duro: Optional[str] = None
-    medio: Optional[str] = None
-    blando: Optional[str] = None
+class RaceData(BaseModel):
+    circuito: str
+    n_grandes_premios: int
+    longitud: float
+    vueltas: int
+    curvas: int
+    distancia: float
+    duro: str
+    medio: str
+    blando: str
+    primer_gp: int

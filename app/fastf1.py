@@ -1,6 +1,5 @@
 import fastf1
 import pandas as pd
-import asyncio
 import json
 
 
@@ -52,8 +51,18 @@ class sesion():
                 self.drivers)]
             # Resetear el índice
             self.data_filtered_pilots.reset_index(drop=True, inplace=True)
+<<<<<<< HEAD
             print("Contenido de `data_filtered_pilots`:",
                   self.data_filtered_pilots)
+=======
+
+            # Manejar NaN y valores infinitos
+            self.data_filtered_pilots = self.data_filtered_pilots.fillna(0)  # Reemplaza NaN con 0
+            self.data_filtered_pilots = self.data_filtered_pilots.replace(
+                [float('inf'), float('-inf')], 0)  # Reemplaza valores infinitos con 0
+            print("Contenido de `SesionState.data_filtered_pilots`:",
+                self.data_filtered_pilots)
+>>>>>>> testSanti
         else:
             print("Error: Los datos de la sesión no están disponibles. Asegúrate de ejecutar `load_sesion` primero.")
 
@@ -124,6 +133,7 @@ class sesion():
                 json.dump(json_data, f, indent=4, ensure_ascii=False)
             print("Archivo JSON guardado en: app/data/data_filtered_pilots.json")
         else:
+<<<<<<< HEAD
             print("Error: No hay datos filtrados disponibles para guardar. Asegúrate de ejecutar `filter_by_driver` primero.")
 
 
@@ -148,3 +158,6 @@ async def main():
 
 # Ejecutar la función principal
 asyncio.run(main())
+=======
+            print("Error: No hay datos filtrados disponibles para guardar. Asegúrate de ejecutar `filter_by_driver` primero.")
+>>>>>>> testSanti

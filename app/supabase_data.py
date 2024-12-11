@@ -60,26 +60,6 @@ class SupabaseAPI():
         )
         return response
 
-<<<<<<< HEAD
-    def update_user(self, email: str, updated_data: dict):
-        """
-        Actualiza la información de un usuario basado en su email.
-
-        Args:
-            email (str): Email del usuario a actualizar.
-            updated_data (dict): Diccionario con los datos a actualizar.
-
-        Returns:
-            Response: Respuesta de Supabase con los datos actualizados.
-
-        Raises:
-            ValueError: Si no se encuentra el usuario o ocurre un error en la actualización.
-        """
-        try:
-            print(f"Iniciando actualización para usuario con email: {email}")
-
-            # Verificar si el usuario existe
-=======
     def update_user(self, nick: str, updated_data: dict):
         """
         Actualiza la información de un usuario basándose en su nick.
@@ -91,7 +71,6 @@ class SupabaseAPI():
         """
         try:
             # Verificar usuario existente
->>>>>>> testSanti
             check_user = (
                 self.supabase.table(self.tabla)
                 .select("*")
@@ -102,19 +81,7 @@ class SupabaseAPI():
             if not check_user.data:
                 raise ValueError(f"No se encontró usuario con nick: {nick}")
 
-<<<<<<< HEAD
-            usuario_actual = check_user.data[0]
-            print(f"Usuario encontrado: {usuario_actual}")
-            print(f"Aplicando actualización: {updated_data}")
-
-            # Combinar datos actuales con los nuevos datos
-            datos_actualizados = {**usuario_actual}
-            datos_actualizados.update(updated_data)
-
-            # Realizar la actualización usando los datos combinados
-=======
             # Actualizar los datos del usuario
->>>>>>> testSanti
             response = (
                 self.supabase.table(self.tabla)
                 .update(updated_data)
@@ -122,21 +89,8 @@ class SupabaseAPI():
                 .execute()
             )
 
-<<<<<<< HEAD
-            # Verificar si la actualización fue exitosa
-            if not response or not response.data:
-                verify = (
-                    self.supabase.table(self.tabla)
-                    .select("*")
-                    .eq("email", email)
-                    .execute()
-                )
-                if verify.data:
-                    return verify
-=======
             if not response.data:
                 raise ValueError(f"No se pudo actualizar el usuario con nick: {nick}")
->>>>>>> testSanti
 
             return response
         except Exception as e:

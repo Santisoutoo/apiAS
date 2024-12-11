@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 
 
 class SupabaseDataCircuit():
-    def __init__(self, tabla, select = '*' circuit = None):
+    def __init__(self, tabla, select = '*', circuit = None):
 
         #Varibales entorno
         load_dotenv()

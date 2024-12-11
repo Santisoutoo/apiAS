@@ -1,12 +1,13 @@
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, Query
 from fastapi.security import OAuth2PasswordRequestForm
 import os
 from dotenv import load_dotenv
 from supabase import create_client
 import asyncio
-
+from typing import List, Optional
 from app.routes.oauth import get_current_user, create_access_token, verify_password, get_password_hash
 from app.supabase_data import SupabaseAPI
+from app.supabase_races import SupabaseDataCircuit
 from app.models import *
 from app.utilidades import read_data, write_data
 from app.fastf1 import sesion
@@ -76,6 +77,43 @@ async def get_f1_session(year: int, circuit: str, session: str, drivers: str):
             status_code=500,
             detail=f"Error al cargar los datos de la sesión: {str(e)}"
         )
+    
+@app.get("/f1/circuitos/campos")
+def get_custom_fields_for_circuits(
+    circuito: Optional[str] = Query(None, description="Nombre del circuito"),
+    fields: Optional[List[str]] = Query(None, description="Campos deseados")
+):
+    """
+    Endpoint para obtener datos personalizados de un circuito basado en los campos solicitados.
+    """
+    try:
+        # Inicializar conexión a Supabase
+        supabase_circuit = SupabaseDataCircuit(tabla="datos_circuitos", select="*")
+        response = supabase_circuit.fetch_data()
+
+        if not response.data:
+            raise HTTPException(status_code=404, detail="No se encontraron datos de circuitos.")
+
+        # Filtrar por circuito si está definido
+        circuitos = response.data
+        if circuito:
+            circuitos = [c for c in circuitos if c.get("circuito") == circuito]
+
+        if not circuitos:
+            raise HTTPException(status_code=404, detail=f"No se encontraron datos para el circuito {circuito}.")
+
+        # Si se solicitan campos específicos, filtrar los datos
+        if fields:
+            circuitos = [
+                {key: c[key] for key in fields if key in c} for c in circuitos
+            ]
+
+        return {
+            "message": "Datos obtenidos exitosamente",
+            "data": circuitos
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al obtener datos: {str(e)}")
 
 
 # OPERACIONES SUPABASE
@@ -152,49 +190,39 @@ async def delete_user(nick: str, current_user: str = Depends(get_current_user)):
 #     #
 #######     
 
-@app.get("/f1/circuitos/curiosos")
-def get_circuitos_curiosos(
-    fields: Optional[List[str]] = Query(default=None, description="Campos deseados"),
-    min_curvas: Optional[int] = Query(default=10, description="Número mínimo de curvas"),
-    max_distancia: Optional[float] = Query(default=310.0, description="Máxima distancia en km"),
-    primer_gp_desde: Optional[int] = Query(default=2010, description="Año mínimo para el primer GP")
+@app.get("/f1/circuitos/campos")
+def get_custom_fields_for_circuits(
+    circuito: Optional[str] = Query(None, description="Nombre del circuito"),
+    fields: Optional[List[str]] = Query(None, description="Campos deseados")
 ):
     """
-    Endpoint para obtener los datos de los circuitos curiosos con campos personalizados.
+    Endpoint para obtener datos personalizados de un circuito basado en los campos solicitados.
     """
     try:
-        # Obtener todos los datos de la tabla
-        response = supabase_data.fetch_data()
+        # Inicializar conexión a Supabase
+        supabase_circuit = SupabaseDataCircuit(tabla="circuits", select="*")
+        response = supabase_circuit.fetch_data()
 
         if not response.data:
-            raise HTTPException(status_code=404, detail="No se encontraron datos en la tabla.")
+            raise HTTPException(status_code=404, detail="No se encontraron datos de circuitos.")
 
-        # Filtrar los circuitos curiosos según los criterios
-        circuitos_curiosos = [
-            circuito for circuito in response.data
-            if circuito["curvas"] <= min_curvas
-            or circuito["distancia"] >= max_distancia
-            or circuito["primer_gp"] >= primer_gp_desde
-        ]
+        # Filtrar por circuito si está definido
+        circuitos = response.data
+        if circuito:
+            circuitos = [c for c in circuitos if c.get("circuito") == circuito]
 
-        if not circuitos_curiosos:
-            raise HTTPException(
-                status_code=404, detail="No se encontraron circuitos curiosos con los filtros dados."
-            )
+        if not circuitos:
+            raise HTTPException(status_code=404, detail=f"No se encontraron datos para el circuito {circuito}.")
 
-        # Si se especifican campos, filtrar la respuesta
+        # Si se solicitan campos específicos, filtrar los datos
         if fields:
-            filtered_data = [
-                {key: circuito[key] for key in fields if key in circuito}
-                for circuito in circuitos_curiosos
+            circuitos = [
+                {key: c[key] for key in fields if key in c} for c in circuitos
             ]
-        else:
-            # Si no se especifican campos, devolver todos los datos
-            filtered_data = circuitos_curiosos
 
         return {
             "message": "Datos obtenidos exitosamente",
-            "data": filtered_data
+            "data": circuitos
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al obtener datos: {str(e)}")

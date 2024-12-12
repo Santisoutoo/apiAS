@@ -10,7 +10,7 @@ Este proyecto es una API REST básica creada con FastAPI. Implementa operaciones
 - Uvicorn
 - SQLAlchemy
 - Databases
-- SQLite (opcional, para la base de datos local)
+- SQLite
 
 ### Configuración del Proyecto
 

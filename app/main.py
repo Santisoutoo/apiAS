@@ -165,7 +165,6 @@ async def get_niks_from_supabase(current_user: str = Depends(get_current_user)):
                                 #     #
                                 #######  
 
-# TODO: INVESTIGAR COMO QUITAR EL NICK DE LA PETICION
 @app.put("/users/{nick}", tags=["Usuarios"])
 async def update_user(
     nick: str, user_update: UserUpdate, 
@@ -213,6 +212,57 @@ def update_f1_calendar(
         return {"message": "Información del circuito actualizada exitosamente", "data": response}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+    
+
+
+
+@app.put("/users/change-password", tags=["Usuarios"])
+async def change_password(
+    current_password: str = Body(..., embed=True),
+    new_password: str = Body(..., embed=True),
+    current_user: dict = Depends(get_current_user),
+):
+    """
+    Endpoint para cambiar la contraseña de un usuario autenticado.
+    """
+    try:
+        # Validar que las contraseñas no sean vacías
+        if not current_password or not new_password:
+            raise HTTPException(status_code=400, detail="Las contraseñas no pueden estar vacías")
+
+        # Obtener usuario desde la base de datos
+        response = supabase.table("users").select("*").eq("email", current_user["sub"]).execute()
+        if not response.data:
+            raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+        user = response.data[0]
+        print("Datos del usuario encontrado en la base de datos:", user)
+
+        # Verificar que la contraseña actual es correcta
+        if not verify_password(current_password, user.get("password", "")):
+            raise HTTPException(status_code=400, detail="La contraseña actual es incorrecta")
+
+        # Hashear la nueva contraseña
+        hashed_password = get_password_hash(new_password)
+
+        # Actualizar contraseña en la base de datos
+        update_response = (
+            supabase.table("users")
+            .update({"password": hashed_password})
+            .eq("email", current_user["sub"])
+            .execute()
+        )
+
+        if not update_response.data:
+            raise HTTPException(status_code=500, detail="Error al actualizar la contraseña en la base de datos")
+
+        print("Respuesta de actualización completa:", update_response)
+        return {"message": "Contraseña actualizada exitosamente"}
+
+    except Exception as e:
+        # Imprimir error para depuración
+        print("Error al cambiar la contraseña:", str(e))
+        raise HTTPException(status_code=500, detail=f"Error al cambiar la contraseña: {str(e)}")
 
     
                                     ########
